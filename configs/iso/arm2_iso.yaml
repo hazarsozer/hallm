@@ -1,0 +1,18 @@
+# Arm A2 — HaLViT-style intra-layer W+Wᵀ sharing (FFN W2=W1ᵀ and attn V=W_kvᵀ, O=W_qᵀ; width axis).
+# Identical to arm0 except `arm:` (matched budget).
+shape: s30x2
+arm: A2
+train:
+  lr: 6.0e-4
+  min_lr: 6.0e-5
+  warmup_steps: 200
+  max_steps: 50000
+  weight_decay: 0.1
+  grad_clip: 1.0
+  batch_size: 12
+  grad_accum: 2
+  dtype: bfloat16
+  seed: 1337
+  deterministic: true
+  eval_interval: 1000
+  out_dir: runs_iso/A2iso

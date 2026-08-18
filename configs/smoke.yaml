@@ -1,0 +1,16 @@
+# Tiny smoke config — micro shape, CPU, a handful of steps. Used by tests; safe to run anywhere.
+shape: smoke        # d=64, L=2, heads=2, vocab=256, block=64
+arm: A0
+train:
+  lr: 1.0e-2
+  min_lr: 1.0e-3
+  warmup_steps: 1
+  max_steps: 5
+  batch_size: 4
+  dtype: float32
+  seed: 0
+  deterministic: false
+  eval_interval: 5
+  eval_iters: 2
+  log_interval: 1
+  out_dir: runs/smoke

@@ -1,0 +1,29 @@
+# PDF papers — large files, copyright restrictions
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Obsidian workspace state (local to each user)
+wiki/.obsidian/workspace.json
+wiki/.obsidian/workspace-mobile.json
+
+# Environment
+.env
+*.env
+.venv/
+
+# Training / harness artifacts (sharedlm)
+runs/
+data/*.bin
+*.pt
+.pytest_cache/
+.loop/uv_sync.log
+runs_iso*/
+runs*.log
+.train_pid

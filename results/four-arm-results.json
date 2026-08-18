@@ -1,0 +1,38 @@
+[
+  {
+    "arm": "A0",
+    "non_embedding_params_M": 25.1745,
+    "total_params_M": 51.1683,
+    "size_fp32_MB": 195.191,
+    "size_bf16_MB": 97.596,
+    "fwd_gflops": 56.4139,
+    "test_ppl": 26.061
+  },
+  {
+    "arm": "A1",
+    "non_embedding_params_M": 3.1473,
+    "total_params_M": 29.141,
+    "size_fp32_MB": 111.164,
+    "size_bf16_MB": 55.582,
+    "fwd_gflops": 56.4139,
+    "test_ppl": 35.6261
+  },
+  {
+    "arm": "A2",
+    "non_embedding_params_M": 12.5916,
+    "total_params_M": 38.5853,
+    "size_fp32_MB": 147.191,
+    "size_bf16_MB": 73.596,
+    "fwd_gflops": 56.4139,
+    "test_ppl": 29.677
+  },
+  {
+    "arm": "A3",
+    "non_embedding_params_M": 1.5744,
+    "total_params_M": 27.5681,
+    "size_fp32_MB": 105.164,
+    "size_bf16_MB": 52.582,
+    "fwd_gflops": 56.4139,
+    "test_ppl": 43.3001
+  }
+]

@@ -1,0 +1,71 @@
+---
+title: "Weight Sharing"
+aliases: ["parameter sharing", "cross-layer sharing", "tied weights"]
+papers: ["1504.04788", "1702.04008", "1909.11942", "2101.00234", "2207.10237", "2312.08401", "2410.03765", "2309.13575"]
+tags: [#weight-sharing]
+last_updated: 2026-08-17
+---
+
+## Definition
+Weight sharing ties parameters across multiple locations in a neural network — either across layers (the same weight matrix used in multiple transformer layers) or within a layer (groups of connections mapped to the same scalar or low-rank basis). The parameter count is reduced while the effective capacity is preserved through re-use.
+
+## Major Variants
+
+### Cross-Layer Sharing
+- **Universal Transformers / ALBERT-style**: Apply the same weight matrix to every transformer layer. ALBERT [arxiv:1909.11942] achieves 18× parameter reduction (18M vs 334M BERT-large) with ~1.5 Avg GLUE point loss. Key ablation: sharing only attention costs almost nothing (+0.1 Avg); sharing FFN is where accuracy drops. Requires factorized embedding parameterization (decouple E from H) as companion. Layer L2 distances oscillate rather than converge — a stable but fundamentally different solution space. See [[sources/1909.11942]].
+- **Subformer** [arxiv:2101.00234]: Sandwich-style cross-layer sharing for generative Transformers. All-layer ALBERT-style sharing collapses generation quality (BLEU 14.3 vs 27.3 baseline). Key finding: the first and last Transformer layers must remain independent (they learn task-specific input/output representations); only middle layers (2 ≤ l ≤ L−1) can be safely shared. **Sandwich** (38M params) matches Transformer-base (65M) at same BLEU; **Subformer-base** (52M) achieves BLEU 28.5 (+1.2 above 65M base). Companion technique: **SAFE** (Self-Attentive Factorized Embeddings) — small self-attention sub-layer projects from reduced d_e to d_m more expressively than linear projection, cutting embedding params (up to 25% of model). Wikitext-103: 122M Subformer PPL 19.90 vs 151M Transformer-XL PPL 24.03 with 65% fewer training iterations. See [[sources/2101.00234]].
+- **SPIN** [arxiv:2207.10237]: Systematic evaluation of cross-layer sharing in isotropic architectures (ViT/DeiT, ConvMixer, ConvNeXt). Two-dimensional topology framework: (1) sharing mapping (Sequential, Strided, Pyramid, Random) × (2) sharing distribution (Uniform, Front, Middle, Back). Share rate = L/P. Key findings: (a) weight fusion from pretrained initialization (Channel Weighted Mean) is critical — recovers 0.5–1.3 pp over from-scratch sharing; (b) CKA shows middle layers most similar → best candidates for sharing; (c) normalization layers must never be shared (diverge). **DeiT-S results**: share rate 2 + fusion → 11.41M params, 79.44% (vs 22.05M, 80.52% baseline) — 2× compression, −1.08%. Share rate 3 + fusion → 7.87M, 77.11% (−3.41%). Weight sharing at any iso-parameter budget outperforms training a natively smaller model. See [[sources/2207.10237]].
+- **Basis Sharing** [arxiv:2410.03765]: SVD-based cross-layer sharing in LLMs. Adjacent layers share a common basis B (left singular vectors of the concatenated, activation-scaled weight stack) while retaining unique per-layer coefficient matrices C^(i). W^(i) ≈ B·C^(i). No training required. Beats all per-layer SVD baselines (ASVD, SVD-LLM) at 20–50% compression. Also beats Dynamic Tying (training-from-scratch alternative) on GPT2 with a 3× smaller model in seconds. Applies to W_K, W_Q, W_V, W_Up, W_Gate; W_Down and W_O must be compressed individually (rank increases under concatenation). See [[sources/2410.03765]].
+- **DeltaLLM**: Shares a base weight and adds low-rank deltas per layer, combining sharing with expressiveness.
+
+### Within-Layer (Intra-Layer) Sharing
+- **HashedNets** [arxiv:1504.04788] (Chen, Wilson, Tyree, Weinberger et al., WashU/NVIDIA, ICML 2015): Foundational hash-based intra-layer weight sharing. Hash function h(i,j) maps each connection to a bucket; all connections in the same bucket share one scalar parameter. Sign factor ξ(i,j) ∈ {-1,+1} removes inner-product bias from collisions. Zero overhead — only the hash table **w** ∈ ℝ^K is stored; hash functions are precomputed. Gradient accumulation: ∂L/∂w_k = Σ_{h(i,j)=k} a_j δ_i ξ(i,j) — gradients from all consumers sum (this is the universal shared-weight gradient mechanism). "Inflation" trick: fix storage, increase virtual network size (expansion factor 8–16×) — accuracy improves because shared weights serve more consumers. At 1/64 compression, LRD error 28.11% vs HashedNets 1.92% on 5-layer MNIST — random sharing dominates low-rank decomposition at extreme compression. See 1504.04788.
+- **Probabilistic Weight Fixing (PWF)** [arxiv:2309.13575] (Subia-Waud, Dasmahapatra, Southampton, NeurIPS 2023): extends Soft Weight-Sharing with position-specific weight uncertainty. Each weight is a distribution N(μ_i, σ_i²); variational relaxation learns per-weight uncertainty; cluster assignment uses uncertainty (not just value distance) — weights with high σ resist premature cluster assignment. DeiT-Tiny ImageNet: +1.6% top-1 vs SOTA with 296 unique values from 5M+ weights. For HaLViT shared W: position-specific uncertainty is ill-defined for shared weights serving multiple positions — uncertainty must be integrated over all consumers. See 2309.13575.
+- **Soft Weight-Sharing** [arxiv:1702.04008] (Ullrich, Meeds, Welling, UvA, ICLR 2017): Bayesian/MDL approach. Gaussian Mixture Model prior p(w) = Π Σ π_j N(w_i|μ_j,σ_j²) over all weights; 17 components (16 non-zero + 1 zero component for pruning). Loss = L^E + τ·L^C; both weights and mixture parameters {μ_j, σ_j, π_j} optimized jointly by Adam. Post-training: each weight snaps to nearest cluster mean (quantization). Zero component (μ_0=0, π_0≈0.999) drives automatic pruning. Key result: LeNet-5-Caffe **162×** compression with +0.09% error (vs Han 39×, Guo 108×). Unifies pruning + quantization in one procedure. Scale limitation: explicitly too slow for VGG-138M, requires 13-hyperparameter Bayesian optimization. See 1702.04008.
+- **ArbNet / Balanced+Deterministic Sharing** [arxiv:2312.08401] (Chang & Lipson, Columbia, Dec 2023): A unifying framework where any neural network is augmented with a hash table of size n. Each weight w_i has identifier i; hash function h maps i to table entry h(i); collisions force sharing. MLP = identity hash (no sharing); CNN = Toeplitz hash (balanced + deterministic); RNN = modulus hash. Two principles demonstrated: (1) **Balance** — Shannon entropy H = −Σ p_i log p_i of table access frequencies; higher entropy → better accuracy; controlled by Dirichlet hash parameter α; (2) **Determinism** — lower noise in the hash mapping → better accuracy; controlled by Neighborhood hash radius (radius=0 → fully deterministic modulus hash). CNNs succeed because their implicit sharing is both perfectly balanced and deterministic. Experiments: MNIST and CIFAR10 MLP ArbNets only — no ViT/LLM benchmarks. See 2312.08401.
+- **HaLViT**: Row/column-space sharing within ViT attention and FFN blocks. After nonlinear activation F(·), the output of **W**x no longer lives in the column space of **W**, making **W**ᵀ an independently expressive transformation. This mathematical justification makes it principled rather than heuristic. Applied to MHA (shared Wkv for keys/values, shared Wq for queries/projection) and FFN (W for forward, Wᵀ for output). See [[sources/halvit]].
+
+## Key Papers
+
+- 1504.04788 — HashedNets: hashing trick for random weight tying
+- 1702.04008 — Soft Weight-Sharing: Bayesian weight clustering
+- 2312.08401 — ArbNet: unified hash-table framework; balance and determinism as design principles
+- [[sources/1909.11942]] — ALBERT: cross-layer sharing in BERT, 12× compression
+- [[sources/2101.00234]] — Subformer: selective sharing in generative transformers
+- [[sources/2207.10237]] — SPIN: systematic 2D topology evaluation for isotropic nets; DeiT-S 2× compression at −1.08%
+- [[sources/2410.03765]] — Basis Sharing: SVD cross-layer sharing for LLMs
+- DeltaLLM — shared base + low-rank deltas (source PDF not in repository)
+- [[sources/halvit]] — HaLViT: W + Wᵀ intra-layer sharing in ViT and ResNet; 11.1M params matching 14–22M models
+
+## Trade-offs
+
+| Approach | Compression | Accuracy | Training complexity |
+|----------|------------|----------|---------------------|
+| Cross-layer identical (ALBERT) | High (12×) | Small loss | Low — same as base training |
+| Cross-layer basis+coeff (Basis Sharing) | High (20–50%) | Very low loss | None — post-training calibration only |
+| Cross-layer isotropic (SPIN) | High (2–4×) | Small loss with fusion | Low — pretrained weight fusion |
+| ArbNet (balanced+det. hash) | Moderate | Measured by entropy | Low — hash precomputed |
+| Intra-layer hashing | Moderate | Moderate loss | Low |
+| Soft sharing (Bayesian) | Moderate | Low loss | High — EM optimization |
+| HaLViT row/col | Moderate | Low loss | Moderate |
+| DeltaLLM | High | Very low loss | Moderate |
+
+**Basis Sharing vs. ALBERT**: ALBERT sets W^(i) = W (all layers identical — maximum parameter reduction, but layers lose individuality). Basis Sharing sets W^(i) ≈ B·C^(i) (shared structure, unique adaptation). Empirical result: Basis Sharing strictly outperforms ALBERT/Dynamic Tying-style approaches without any training, using a 3× smaller model. The individuality of coefficients C^(i) recovers the expressiveness that identical-weight sharing sacrifices.
+
+## Open Questions
+
+- **Composability**: Can weight sharing compose with pruning or quantization without interference? Pruning a shared weight is ambiguous (which consumer's gradient drives the mask?). Quantizing shared weights amplifies errors across all consumers. HaLViT's Discussion section explicitly names this as open future work — the thesis opportunity. Basis Sharing is post-training, so pruning/quantization could be applied *after* basis sharing without the shared-weight-gradient ambiguity. See [[concepts/quantization]], [[concepts/pruning]].
+- **HaLViT + Basis Sharing composition**: HaLViT shares W+Wᵀ within a layer; Basis Sharing shares a basis across layer pairs. These operate on orthogonal axes. Applying Basis Sharing to HaLViT's already-tied W+Wᵀ weights across depth is an open experiment — it could compound compression further.
+- **W_Down / W_O exclusion**: Basis Sharing cannot apply cross-layer sharing to projection-down matrices (rank increases under concatenation). This is a ceiling on how much total compression Basis Sharing can achieve — ~5 of 7 weight types in LLaMA can be shared. A method to share projection-down matrices would be a meaningful advance.
+- **Scaling**: ALBERT-style sharing degrades at very deep networks. Basis Sharing shows groups of 2–5 layers work well even in 32-layer LLaMA. What is the depth limit for HaLViT-style intra-layer sharing?
+- **HaLViT + Subformer (Sandwich + W+Wᵀ) composition**: If extending HaLViT's W+Wᵀ sharing across depth using Sandwich-style cross-layer sharing, the first and last ViT blocks should remain unshared across layers. Subformer proves this is necessary for generative quality. Whether this constraint also applies in ViT (a discriminative/non-generative architecture) is an open question — ViT's first block processes patch embeddings (role similar to BERT, not seq2seq) so ALBERT-style full sharing may be applicable. See subformer-model.
+- **Expressiveness limit**: When does tying weights hurt more than it saves? The literature shows performance cliffs at certain compression ratios. For Basis Sharing, the 50% compression cliff (PPL 19.99 vs. original 5.68) is the current threshold. For SPIN-style cross-layer sharing in DeiT, the cliff appears around share rate 4 (−5.4% accuracy).
+- **HaLViT + SPIN (cross-layer + intra-layer composition)**: SPIN cross-layer sharing and HaLViT intra-layer W+Wᵀ sharing are orthogonal axes — SPIN shares W across layers, HaLViT ties W with Wᵀ within a layer. A joint model would need a compound fusion strategy: when merging pretrained weights from shared layers, the W and Wᵀ paths must be fused jointly. Whether CWM fusion applied separately to the W path and Wᵀ path yields a valid shared tensor is unstudied. See [[entities/spin-method]].
+- **Normalization layer exclusion**: SPIN shows BatchNorm sharing causes divergence. Extending HaLViT cross-layer: LayerNorm in ViT must remain independent per-layer even when attention/FFN weights are shared.
+- **Weight fusion for HaLViT**: If applying cross-layer sharing to a pretrained HaLViT model, the existing W+Wᵀ constraint must be maintained during fusion. Standard CWM fusion would merge weights from layers l and l+k — but both are already non-square (they share Wᵀ). The fusion must produce a new W from which Wᵀ remains the correct transposed counterpart.
+- **ArbNet characterization of HaLViT**: In the ArbNet framework, HaLViT's W+Wᵀ sharing can be expressed as a hash where the forward-path weight identifier i and the transposed-path identifier j both hash to the same table entry. This sharing is fully deterministic (no noise) and balanced (W and Wᵀ paths access the shared entry with equal frequency due to symmetry of forward/backward structure). Verifying this analytically for HaLViT's asymmetric MHA/FFN structure (Wkv shared across K and V, Wq shared across Q and projection) would formally confirm the ArbNet balance principle applies. See 2312.08401.
+- **Official-code evidence for composed sharing (2026-08-17)**: the released HaLViT CNN code ([[sources/halvit-official-code]]) defines the shared matrix once *per stage* and reuses it across all blocks of the stage — the authors themselves compose intra-layer W+Wᵀ with cross-block sharing (norm layers kept per-block). Direct precedent for the thesis's combined arm. The ViT/attention code is unreleased, so the Wkv/Wq attention formulation used in both thesis codebases ([[analyses/wplusw-lm-review-2026-08]]) remains a reconstruction from the paper text.
+
+## Relevance to Project
+
+Weight sharing is HaLViT's core mechanism. This concept page is the most important for cross-referencing. Understanding where sharing excels vs. where it conflicts with other techniques is the central research question of the project. Comparison with ALBERT/Subformer should be the first analysis page created.
