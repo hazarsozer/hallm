@@ -29,7 +29,7 @@ iso-storage the unshared model still wins: sharing is best-in-class graceful deg
 not free capacity.
 
 See [RESULTS.md](RESULTS.md) for the full story, caveats, and follow-ups.
-Trained checkpoints: on Hugging Face Hub (link TBD).
+Trained checkpoints: [hazarsozer/hallm-wikitext103](https://huggingface.co/hazarsozer/hallm-wikitext103) (private).
 
 ## Quick start
 
