@@ -28,6 +28,21 @@ matched shape or iso-compute — a predictable price for halving stored weights 
 iso-storage the unshared model still wins: sharing is best-in-class graceful degradation,
 not free capacity.
 
+## Term-2: the sharing tax vs scale (Experiment 3, in progress)
+
+Depth-scaled ladder at d=512 testing whether the tax *shrinks* as models grow
+(hypothesis H-S; spec: `wiki/roadmap/06-scaling-campaign.md`). Single-seed so far,
+seeds 1338/1339 in flight (distributed across two machines — see issue #1):
+
+| rung | non-emb (unshared) | unshared PPL | shared PPL | tax |
+|------|--------------------|-------------|------------|-----|
+| L4 | 12.6M | 29.14 | 33.50 | **+14.9%** |
+| L8 | 25.2M | 26.06 | 29.68 | +13.9% |
+| L16 | 50.3M | 23.98 | 27.01 | +12.7% |
+
+Monotone in the H-S-predicted direction; early seed spread is small (L4-A0:
+29.14 vs 29.07 across seeds 1337/1338). Raw rows: `results/ladder.jsonl`.
+
 See [RESULTS.md](RESULTS.md) for the full story, caveats, and follow-ups.
 Trained checkpoints: [hazarsozer/hallm-wikitext103](https://huggingface.co/hazarsozer/hallm-wikitext103) (private).
 
@@ -35,7 +50,7 @@ Trained checkpoints: [hazarsozer/hallm-wikitext103](https://huggingface.co/hazar
 
 ```bash
 uv sync
-uv run pytest                       # 26 tests: param-count proofs + smoke + pipeline
+uv run pytest                       # 50 tests: param-count proofs + smoke + pipeline + campaign infra
 # real training (GPU):
 uv run python scripts/run_real_training.py prepare --train wiki.train.raw --val wiki.valid.raw --out data/
 uv run python scripts/run_real_training.py run --data data/ --configs configs --out runs/
@@ -45,7 +60,8 @@ uv run python scripts/run_real_training.py run --data data/ --configs configs --
 
 One-time: `uv run python scripts/gen_ladder_configs.py` (configs + queue already committed).
 
-Each GPU session (on the Linux box, under systemd-inhibit):
+Each GPU session (on the Linux box; auto-suspend must be off — note `systemd-inhibit`
+is polkit-denied over non-interactive ssh, so don't wrap the command in it remotely):
 
     uv run python scripts/run_queue.py --queue configs/ladder/queue.txt \
         --data data/ --results results/ladder.jsonl
