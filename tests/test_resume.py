@@ -1,8 +1,6 @@
 """Resume-equivalence: interrupted-and-resumed training must equal an unbroken run (spec §8.1)."""
 from __future__ import annotations
 
-from dataclasses import replace
-
 import torch
 
 from hallm.data import make_synthetic_data

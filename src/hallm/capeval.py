@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from hallm.eval import evaluate_perplexity
-from hallm.model.gpt import GPT
+from hallm.model import GPT
 
 
 @torch.no_grad()
@@ -38,6 +38,8 @@ def sequence_nll(model: GPT, ids: list[int], device: str = "cpu") -> float:
 @torch.no_grad()
 def blimp_accuracy(model: GPT, pairs, device: str = "cpu") -> float:
     """Fraction of (good_ids, bad_ids) pairs with NLL(good) < NLL(bad). Strict: a tie is wrong."""
+    if not pairs:
+        return float("nan")
     correct = sum(
         1 for good, bad in pairs
         if sequence_nll(model, good, device) < sequence_nll(model, bad, device)
@@ -64,6 +66,8 @@ def greedy_continuation(model: GPT, context_ids, n_tokens: int, device: str = "c
 @torch.no_grad()
 def lambada_accuracy(model: GPT, examples, device: str = "cpu") -> float:
     """examples: (context_ids, target_ids). Correct iff greedy continuation matches target exactly."""
+    if not examples:
+        return float("nan")
     correct = sum(
         1 for ctx, tgt in examples
         if greedy_continuation(model, ctx, len(tgt), device) == list(tgt)

@@ -64,10 +64,13 @@ def main() -> None:
     results: dict[str, dict] = {}
     for path in paths:
         name = Path(path).stem
+        if name == "resume":
+            print(f"[skip] {path}: resume checkpoint, not a finished run")
+            continue
         model, cfg = build_model_from_checkpoint(path, map_location=device)
         model.to(device).eval()
         row: dict = {"arm": cfg.arm, "n_layer": cfg.n_layer}
-        if lam:
+        if lam is not None:
             row["lambada_acc"] = round(lambada_accuracy(model, lam, device), 4)
         if blimp:
             per_task = {k: round(blimp_accuracy(model, v, device), 4) for k, v in blimp.items()}

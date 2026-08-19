@@ -38,7 +38,7 @@ def _git_commit(repo_dir: str | Path = ".") -> str:
             ["git", "rev-parse", "HEAD"], cwd=repo_dir, capture_output=True, text=True, timeout=10
         )
         return out.stdout.strip() or "unknown"
-    except OSError:
+    except (OSError, subprocess.SubprocessError):
         return "unknown"
 
 
@@ -55,6 +55,7 @@ def build_manifest(
         "model_cfg": asdict(model_cfg),
         "train_cfg": asdict(train_cfg),
         "data_sha256": {Path(p).name: file_sha256(p) for p in data_files},
+        "tokenizer": "gpt2",
         "git_commit": _git_commit(repo_dir),
         "python": sys.version.split()[0],
         "torch": torch.__version__,

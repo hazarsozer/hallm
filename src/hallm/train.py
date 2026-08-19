@@ -120,8 +120,14 @@ def train(
     If `resume_path` is given, training state is periodically saved there (every
     `checkpoint_interval` steps) and, when the file already exists, restored from it — so an
     interrupted run continues exactly where it stopped (spec 06 §8.1). `stop_step` ends the
-    session after that step (checkpoint saved), for bounded GPU windows."""
+    session after that step (checkpoint saved), for bounded GPU windows.
+
+    `stop_step` requires `resume_path`: an early stop with nowhere to save state would silently
+    discard the partial run."""
     from hallm.data import get_batch
+
+    if stop_step is not None and not resume_path:
+        raise ValueError("stop_step requires resume_path")
 
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
@@ -136,6 +142,8 @@ def train(
         opt.load_state_dict(ckpt["opt"])
         gen.set_state(ckpt["gen_state"])
         torch.set_rng_state(ckpt["torch_rng"])
+        if ckpt.get("cuda_rng") is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all(ckpt["cuda_rng"])
         start_step = int(ckpt["step"])
 
     use_amp = device != "cpu" and train_cfg.dtype in ("bfloat16", "float16")
@@ -211,21 +219,27 @@ def save_resume_checkpoint(
     step: int,
 ) -> None:
     """Full training state for exact resume (spec 06 §8.1): weights + AdamW moments + data-order
-    generator + global RNG + step. Atomic (tmp + replace) so an interrupt never corrupts the file.
-    Stays `weights_only=True`-loadable: tensors and primitive containers only."""
+    generator + global RNG (+ CUDA RNG, when available) + step. Atomic (tmp + replace) so an
+    interrupt never corrupts the file. Stays `weights_only=True`-loadable: tensors and primitive
+    containers only.
+
+    The CUDA RNG state is a list of ByteTensors (one per device) and is only saved/restored when
+    CUDA is available, so it can never be regression-tested on the CPU-only test suite — it matters
+    for bit-exact resume of any run with dropout > 0 (or other CUDA-side stochastic ops), where a
+    fresh CUDA RNG stream after resume would silently diverge from the interrupted run."""
     tmp = str(path) + ".tmp"
-    torch.save(
-        {
-            "model": model.state_dict(),
-            "opt": opt.state_dict(),
-            "gen_state": gen.get_state(),
-            "torch_rng": torch.get_rng_state(),
-            "step": step,
-            "model_cfg": asdict(model.cfg),
-            "train_cfg": asdict(train_cfg),
-        },
-        tmp,
-    )
+    payload = {
+        "model": model.state_dict(),
+        "opt": opt.state_dict(),
+        "gen_state": gen.get_state(),
+        "torch_rng": torch.get_rng_state(),
+        "step": step,
+        "model_cfg": asdict(model.cfg),
+        "train_cfg": asdict(train_cfg),
+    }
+    if torch.cuda.is_available():
+        payload["cuda_rng"] = torch.cuda.get_rng_state_all()
+    torch.save(payload, tmp)
     os.replace(tmp, path)
 
 

@@ -31,8 +31,8 @@ def generate(out_dir: str | Path) -> list[str]:
     out.mkdir(parents=True, exist_ok=True)
     queue: list[str] = []
     for rung, shape in RUNGS.items():
-        for arm in ARMS:
-            for seed in SEEDS:
+        for seed in SEEDS:
+            for arm in ARMS:
                 name = f"{rung}-{arm}-s{seed}"
                 spec = {
                     "shape": shape,
