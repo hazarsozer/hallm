@@ -61,7 +61,13 @@ def drain(queue_file: str | Path, data_dir: str | Path, results_path: str | Path
     results_path.parent.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     for entry in entries:
-        row = run_one(entry, data_dir, device, stop_step=stop_step)
+        try:
+            row = run_one(entry, data_dir, device, stop_step=stop_step)
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            print(f"[fail] {entry}: {type(e).__name__}: {e}")
+            continue
         if row is None:
             continue
         with results_path.open("a", encoding="utf-8") as f:

@@ -63,3 +63,16 @@ def test_drain_appends_results(tmp_path):
     lines = [json.loads(l) for l in results.read_text().splitlines()]
     assert len(lines) == 2 and lines[1]["arm"] == "A2"
     assert drain(queue, data_dir, results, device="cpu") == []  # everything done ⇒ no-op
+
+
+def test_drain_per_entry_error_isolation(tmp_path):
+    data_dir, cfgs, _ = _setup(tmp_path)
+    results = tmp_path / "results.jsonl"
+    # Create queue with nonexistent config on first line, valid config on second
+    queue = tmp_path / "queue_with_error.txt"
+    queue.write_text(f"{tmp_path}/nonexistent.yaml\n{cfgs[0]}\n")
+    rows = drain(queue, data_dir, results, device="cpu")
+    # Verify drain completed despite first entry error, finished the valid run
+    assert len(rows) == 1 and rows[0]["run"] == "smoke-A0-s7"
+    lines = [json.loads(l) for l in results.read_text().splitlines()]
+    assert len(lines) == 1  # Only one results line (the successful run)
