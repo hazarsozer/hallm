@@ -1,0 +1,17 @@
+shape: s30h
+arm: A0
+train:
+  lr: 0.0006
+  min_lr: 6.0e-05
+  warmup_steps: 200
+  max_steps: 50000
+  weight_decay: 0.1
+  grad_clip: 1.0
+  batch_size: 12
+  grad_accum: 2
+  dtype: bfloat16
+  deterministic: true
+  eval_interval: 1000
+  checkpoint_interval: 1000
+  seed: 1339
+  out_dir: runs/ladder/L4-A0-s1339

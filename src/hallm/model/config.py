@@ -103,5 +103,9 @@ SHAPES: dict[str, ModelConfig] = {
     "s60": ModelConfig(vocab_size=50257, block_size=512, n_embd=640, n_layer=10, n_head=10),
     # iso-param probe: A2 at L=16 stores 6·d²·16 = 25.17M non-emb — exactly A0@s30's count (2× FLOPs)
     "s30x2": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=16, n_head=8),
+    # scaling-campaign ladder (wiki/roadmap/06-scaling-campaign.md §3): width fixed at d=512,
+    # depth-scaled. s30h = L4 rung (~12.6M non-emb unshared); s30x4 = L32 stretch rung (~100.7M).
+    "s30h": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=4, n_head=8),
+    "s30x4": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=32, n_head=8),
     "s124": ModelConfig(vocab_size=50257, block_size=1024, n_embd=768, n_layer=12, n_head=12),
 }
