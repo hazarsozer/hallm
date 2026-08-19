@@ -38,6 +38,27 @@ A0-deep is the unshared control at the same depth (its "virtual" size).
 - Notable: A2-iso reached a *lower final train loss* than A0 (3.29 vs 3.81) while testing
   worse — the shared-deep model fits better but generalizes worse (all runs use dropout 0.0).
 
+## Experiment 3 — Scaling ladder (Term 2, IN PROGRESS)
+
+Campaign spec: `wiki/roadmap/06-scaling-campaign.md`. Depth-scaled ladder at d=512 testing
+**H-S: the sharing tax shrinks with scale.** New runs use the identical protocol (seeds 1338/1339
+added); rows for L8/L16 seed 1337 are Experiments 1–2 restated in ladder form. Raw rows:
+`results/ladder.jsonl`; frozen per-run manifests: `results/manifests/`.
+
+| rung | seed | unshared PPL | shared (W+Wᵀ) PPL | tax |
+|------|------|-------------|-------------------|-----|
+| L4 (12.59M non-emb) | 1337 | 29.14 | 33.50 | **+14.9%** |
+| L4 | 1338 | 29.07 | *(paused at ~4k steps)* | — |
+| L8 (25.17M) | 1337 | 26.06 | 29.68 | +13.9% |
+| L16 (50.35M) | 1337 | 23.98 | 27.01 | +12.7% |
+
+- **Trend so far (single-seed): 14.9% → 13.9% → 12.7%, monotone in the H-S-predicted direction.**
+  The new L4 point extends the line down-scale, where the hypothesis predicts the largest tax.
+- Early seed-noise signal: L4-A0 across seeds 1337/1338 differs by only 0.26% PPL — if that
+  spread holds, the rung-to-rung tax differences (~1 point each) are well outside noise.
+- Status 2026-08-19 evening: 3 of 14 queued runs complete; queue paused (resumable mid-run);
+  remaining: L4-A2-s1338 (from ~4k), L4 pair s1339, L8/L16 pairs seeds 1338/1339.
+
 ## Conclusions
 
 1. HaLViT's W+Wᵀ mechanism **transfers to autoregressive LMs** as the best-in-class sharing
