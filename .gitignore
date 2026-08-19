@@ -27,3 +27,6 @@ data/*.bin
 runs_iso*/
 runs*.log
 .train_pid
+
+# Claude worktrees (session isolation)
+.claude/worktrees/
