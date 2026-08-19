@@ -23,12 +23,16 @@ from hallm.model.gpt import GPT
 @torch.no_grad()
 def sequence_nll(model: GPT, ids: list[int], device: str = "cpu") -> float:
     """Sum NLL (nats) of ids[1:] given their prefixes. Left-truncates to block_size + 1 tokens."""
+    was_training = model.training
     model.eval()
     ids = list(ids)[-(model.cfg.block_size + 1):]
     x = torch.tensor([ids[:-1]], dtype=torch.long, device=device)
     y = torch.tensor([ids[1:]], dtype=torch.long, device=device)
     _, loss = model(x, y)  # mean CE over the sequence
-    return loss.item() * (len(ids) - 1)
+    result = loss.item() * (len(ids) - 1)
+    if was_training:
+        model.train()
+    return result
 
 
 @torch.no_grad()
@@ -44,13 +48,17 @@ def blimp_accuracy(model: GPT, pairs, device: str = "cpu") -> float:
 @torch.no_grad()
 def greedy_continuation(model: GPT, context_ids, n_tokens: int, device: str = "cpu") -> list[int]:
     """Argmax-decode n_tokens after the context (sliding window at block_size)."""
+    was_training = model.training
     model.eval()
     ids = list(context_ids)
     for _ in range(n_tokens):
         x = torch.tensor([ids[-model.cfg.block_size:]], dtype=torch.long, device=device)
         logits, _ = model(x)  # inference path: logits at the last position only
         ids.append(int(logits[0, -1].argmax()))
-    return ids[len(context_ids):]
+    result = ids[len(context_ids):]
+    if was_training:
+        model.train()
+    return result
 
 
 @torch.no_grad()

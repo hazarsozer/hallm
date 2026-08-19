@@ -96,3 +96,32 @@ def test_jsonl_loaders(tmp_path):
     bl.write_text(json.dumps({"sentence_good": "he ran", "sentence_bad": "he run"}) + "\n")
     (good, bad), = load_blimp_file(bl, encode)
     assert good == encode("he ran") and bad == encode("he run")
+
+
+def test_training_mode_restored():
+    """Capeval functions must restore model.training state after calling model.eval()."""
+    model = _model()
+    ctx = list(range(12))
+
+    # Test sequence_nll: call in training mode, assert training is restored
+    model.train()
+    assert model.training
+    sequence_nll(model, ctx)
+    assert model.training, "sequence_nll should restore training mode"
+
+    # Test greedy_continuation: call in training mode, assert training is restored
+    model.train()
+    assert model.training
+    greedy_continuation(model, ctx, 1)
+    assert model.training, "greedy_continuation should restore training mode"
+
+    # Test that eval mode is preserved when already in eval mode
+    model.eval()
+    assert not model.training
+    sequence_nll(model, ctx)
+    assert not model.training, "sequence_nll should preserve eval mode"
+
+    model.eval()
+    assert not model.training
+    greedy_continuation(model, ctx, 1)
+    assert not model.training, "greedy_continuation should preserve eval mode"
