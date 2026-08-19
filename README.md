@@ -41,6 +41,23 @@ uv run python scripts/run_real_training.py prepare --train wiki.train.raw --val 
 uv run python scripts/run_real_training.py run --data data/ --configs configs --out runs/
 ```
 
+## Term-2 campaign workflow (spec: wiki/roadmap/06-scaling-campaign.md)
+
+One-time: `uv run python scripts/gen_ladder_configs.py` (configs + queue already committed).
+
+Each GPU session (on the Linux box, under systemd-inhibit):
+
+    uv run python scripts/run_queue.py --queue configs/ladder/queue.txt \
+        --data data/ --results results/ladder.jsonl
+
+Interrupt freely — the next invocation resumes from `runs/ladder/<name>/resume.pt`.
+Bound a session with `--max-runs 1` or `--stop-step N`.
+
+Capability evals (inference-only, any machine; data fetch documented in the script docstring):
+
+    uv run python scripts/capability_eval.py --checkpoints 'runs/*.pt' 'runs/ladder/*/*.pt' \
+        --lambada data/lambada_test.jsonl --blimp data/blimp --data data/ --out results/
+
 ## Layout
 
 `src/hallm/` harness · `tests/` proofs · `configs/` arm + iso configs · `results/` run outputs ·
