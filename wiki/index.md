@@ -15,6 +15,7 @@ complete 58-source wiki remains in the main research workspace.
 - [[roadmap/03-architecture]] — 03-architecture
 - [[roadmap/04-training-protocol]] — 04-training-protocol
 - [[roadmap/05-eval-protocol]] — 05-eval-protocol
+- [[roadmap/06-scaling-campaign]] — 06-scaling-campaign
 
 ## Analyses
 - [[analyses/edge-hardware-targets]] — edge-hardware-targets
