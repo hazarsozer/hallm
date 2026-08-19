@@ -52,6 +52,7 @@ class TrainConfig:
     eval_iters: int = 100
     log_interval: int = 50
     out_dir: str = "runs"
+    checkpoint_interval: int = 1000  # steps between resume-checkpoint writes (0 = never)
 
 
 def set_seed(seed: int, deterministic: bool = True) -> None:
@@ -111,8 +112,15 @@ def train(
     train_data: np.ndarray,
     device: str | torch.device | None = None,
     progress: bool = False,
+    resume_path: str | None = None,
+    stop_step: int | None = None,
 ) -> list[dict]:
-    """Run the matched-budget loop. Returns a history of {step, loss, lr} log dicts."""
+    """Run the matched-budget loop. Returns a history of {step, loss, lr} log dicts.
+
+    If `resume_path` is given, training state is periodically saved there (every
+    `checkpoint_interval` steps) and, when the file already exists, restored from it — so an
+    interrupted run continues exactly where it stopped (spec 06 §8.1). `stop_step` ends the
+    session after that step (checkpoint saved), for bounded GPU windows."""
     from hallm.data import get_batch
 
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -121,11 +129,20 @@ def train(
     opt = configure_optimizer(model, train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2))
     gen = torch.Generator().manual_seed(train_cfg.seed)  # data order — identical across arms
 
+    start_step = 0
+    if resume_path and os.path.exists(resume_path):
+        ckpt = load_resume_checkpoint(resume_path)
+        model.load_state_dict(ckpt["model"])
+        opt.load_state_dict(ckpt["opt"])
+        gen.set_state(ckpt["gen_state"])
+        torch.set_rng_state(ckpt["torch_rng"])
+        start_step = int(ckpt["step"])
+
     use_amp = device != "cpu" and train_cfg.dtype in ("bfloat16", "float16")
     amp_dtype = torch.bfloat16 if train_cfg.dtype == "bfloat16" else torch.float16
 
     history: list[dict] = []
-    for step in range(train_cfg.max_steps):
+    for step in range(start_step, train_cfg.max_steps):
         lr = cosine_lr(step, train_cfg.warmup_steps, train_cfg.max_steps, train_cfg.lr, train_cfg.min_lr)
         for g in opt.param_groups:
             g["lr"] = lr
@@ -151,6 +168,14 @@ def train(
             history.append({"step": step, "loss": loss_accum, "lr": lr})
             if progress:
                 print(f"step {step:6d} | loss {loss_accum:.4f} | lr {lr:.2e}")
+
+        done = step + 1
+        at_interval = train_cfg.checkpoint_interval > 0 and done % train_cfg.checkpoint_interval == 0
+        stopping = stop_step is not None and done >= stop_step
+        if resume_path and (at_interval or stopping):
+            save_resume_checkpoint(resume_path, model, train_cfg, opt, gen, done)
+        if stopping:
+            break
     return history
 
 
@@ -175,3 +200,35 @@ def build_model_from_checkpoint(path: str | os.PathLike, map_location="cpu") -> 
     model = GPT(cfg)
     model.load_state_dict(ckpt["model"])
     return model, cfg
+
+
+def save_resume_checkpoint(
+    path: str | os.PathLike,
+    model: GPT,
+    train_cfg: TrainConfig,
+    opt: torch.optim.Optimizer,
+    gen: torch.Generator,
+    step: int,
+) -> None:
+    """Full training state for exact resume (spec 06 §8.1): weights + AdamW moments + data-order
+    generator + global RNG + step. Atomic (tmp + replace) so an interrupt never corrupts the file.
+    Stays `weights_only=True`-loadable: tensors and primitive containers only."""
+    tmp = str(path) + ".tmp"
+    torch.save(
+        {
+            "model": model.state_dict(),
+            "opt": opt.state_dict(),
+            "gen_state": gen.get_state(),
+            "torch_rng": torch.get_rng_state(),
+            "step": step,
+            "model_cfg": asdict(model.cfg),
+            "train_cfg": asdict(train_cfg),
+        },
+        tmp,
+    )
+    os.replace(tmp, path)
+
+
+def load_resume_checkpoint(path: str | os.PathLike, map_location="cpu") -> dict:
+    """Load a resume checkpoint written by `save_resume_checkpoint` (safe: weights_only)."""
+    return torch.load(path, map_location=map_location, weights_only=True)
