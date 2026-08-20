@@ -25,9 +25,10 @@ from hallm.runqueue import drain
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="hallm campaign run queue")
-    ap.add_argument("--queue", default="configs/ladder/queue.txt")
+    ap.add_argument("--queue", default="configs/runs/queue.txt")
     ap.add_argument("--data", default="data")
-    ap.add_argument("--results", default="results/ladder.jsonl")
+    ap.add_argument("--results-dir", default="results/runs",
+                    help="directory of per-run result JSONs (one file per run, never a shared ledger)")
     ap.add_argument("--device", default=None, help="cuda | cpu (default: auto)")
     ap.add_argument("--max-runs", type=int, default=None, help="finish at most N runs this session")
     ap.add_argument("--stop-step", type=int, default=None,
@@ -41,9 +42,10 @@ def main() -> None:
         torch.backends.cuda.enable_flash_sdp(False)
         print("flash SDP disabled (SHAREDLM_NO_FLASH_SDP)")
     failures: list[str] = []
-    rows = drain(args.queue, args.data, args.results, device, max_runs=args.max_runs,
+    rows = drain(args.queue, args.data, args.results_dir, device, max_runs=args.max_runs,
                  stop_step=args.stop_step, failures=failures)
-    print(f"\nsession complete: {len(rows)} run(s) finished, {len(failures)} failed → {args.results}")
+    print(f"\nsession complete: {len(rows)} run(s) finished, {len(failures)} failed "
+          f"→ {args.results_dir}/<run-id>.json")
     if failures:
         sys.exit(1)
 

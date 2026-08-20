@@ -46,10 +46,52 @@ def generate(out_dir: str | Path) -> list[str]:
     return queue
 
 
+
+# --- P1 mechanism decomposition (program spec P1) -------------------------------------------
+# Which sublayer's sharing causes the ~14% tax? The FFN path has a genuine nonlinearity between
+# W and W-transpose (strong column-space argument); the attention path has K and V both linear in
+# the same x (weak path, risk R1). These ARMS entries are implemented and unit-tested but have
+# never been run. Run-ID arm tags carry no hyphen, per the artifact-layout run-ID grammar.
+P1_ARMS = {"A2ffn": "A2-ffn", "A2attn": "A2-attn"}
+# Seed 1339 included so P1 matches the seed coverage of the main ladder. NOTE: its tax
+# needs L8-A0-s1339 as the baseline, which is assigned to Alper on issue #1 — the s1339
+# ablations are therefore queued LAST, so seeds 1337/1338 (whose baselines we already
+# hold) produce a complete, self-contained decomposition first.
+P1_SEEDS = [1337, 1338, 1339]
+
+
+def generate_p1(out_dir: str | Path) -> list[str]:
+    """Generate the P1 ablation configs at the L8 rung; return queue entries in drain order.
+
+    Protocol constants come from TRAIN verbatim, because P1 is compared against the already
+    completed L8 A0/A2 pairs — any drift in the recipe invalidates that comparison.
+    """
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[str] = []
+    for seed in P1_SEEDS:          # seed-major: both arms of a seed land together
+        for tag, arm in P1_ARMS.items():
+            name = f"L8-{tag}-s{seed}"
+            spec = {
+                "shape": "s30",
+                "arm": arm,
+                "train": {**TRAIN, "seed": seed, "out_dir": f"runs/ladder/{name}"},
+            }
+            (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+            queue.append(str(out / f"{name}.yaml"))
+    (out / "queue-p1.txt").write_text("\n".join(queue) + "\n", encoding="utf-8")
+    return queue
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", default="configs/ladder")
+    ap.add_argument("--out", default="configs/runs")
+    ap.add_argument("--p1", action="store_true",
+                    help="generate the P1 mechanism-decomposition configs + queue-p1.txt instead")
     args = ap.parse_args()
+    if args.p1:
+        queue = generate_p1(args.out)
+        print(f"wrote {len(queue)} P1 configs to {args.out}/, queue-p1.txt lists them in drain order")
+        return
     queue = generate(args.out)
     print(f"wrote 18 configs to {args.out}/, queue.txt has {len(queue)} pending runs")
 

@@ -58,3 +58,28 @@ def metrics_row(model: nn.Module, cfg: ModelConfig) -> dict[str, float | int | s
         "size_bf16_MB": round(model_size_mb(model, 2), 3),
         "fwd_gflops": round(analytic_forward_gflops(cfg), 4),
     }
+
+
+def kv_cache_bytes(cfg: ModelConfig, ctx: int, batch: int, bytes_per_elem: int = 2) -> int:
+    """KV cache size: 2 (K and V) x d x L per token.
+
+    INDEPENDENT of every sharing flag - sharing compresses weights only. This is why re-investing
+    shared weights into depth pays the saving straight back in cache, and why the maximum possible
+    memory win from a -50% scheme shrinks as context and batch grow (program spec section 1).
+    """
+    return 2 * cfg.n_embd * cfg.n_layer * ctx * batch * bytes_per_elem
+
+
+def memory_row(model: nn.Module, cfg: ModelConfig) -> dict[str, float | int]:
+    """Measured memory footprint, so the memory claim stops being inferred from parameter counts."""
+    pc = count_parameters(model)
+    weight_bytes = pc["total"] * 2  # bf16
+    kv_512_1 = kv_cache_bytes(cfg, 512, 1)
+    kv_2048_8 = kv_cache_bytes(cfg, 2048, 8)
+    return {
+        "weight_bytes_bf16": weight_bytes,
+        "nonemb_weight_bytes_bf16": pc["non_embedding"] * 2,
+        "kv_bytes_ctx512_b1": kv_512_1,
+        "kv_bytes_ctx2048_b8": kv_2048_8,
+        "weight_frac_of_total_ctx512_b1": round(weight_bytes / (weight_bytes + kv_512_1), 4),
+    }

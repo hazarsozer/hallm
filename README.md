@@ -41,7 +41,8 @@ seeds 1338/1339 in flight (distributed across two machines — see issue #1):
 | L16 | 50.3M | 23.98 | 27.01 | +12.7% |
 
 Monotone in the H-S-predicted direction; early seed spread is small (L4-A0:
-29.14 vs 29.07 across seeds 1337/1338). Raw rows: `results/ladder.jsonl`.
+29.14 vs 29.07 across seeds 1337/1338). Raw rows: one file per run under `results/runs/`; generated comparison tables in
+`results/reports/` (rebuild with `uv run python scripts/build_reports.py`).
 
 See [RESULTS.md](RESULTS.md) for the full story, caveats, and follow-ups.
 Trained checkpoints: [hazarsozer/hallm-wikitext103](https://huggingface.co/hazarsozer/hallm-wikitext103) (private).
@@ -63,8 +64,8 @@ One-time: `uv run python scripts/gen_ladder_configs.py` (configs + queue already
 Each GPU session (on the Linux box; auto-suspend must be off — note `systemd-inhibit`
 is polkit-denied over non-interactive ssh, so don't wrap the command in it remotely):
 
-    uv run python scripts/run_queue.py --queue configs/ladder/queue.txt \
-        --data data/ --results results/ladder.jsonl
+    uv run python scripts/run_queue.py --queue configs/runs/queue.txt \
+        --data data/ --results-dir results/runs
 
 Interrupt freely — the next invocation resumes from `runs/ladder/<name>/resume.pt`.
 Bound a session with `--max-runs 1` or `--stop-step N`.

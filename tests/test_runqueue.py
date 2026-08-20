@@ -56,41 +56,41 @@ def test_run_one_resumes_after_interrupt(tmp_path):
     assert row is not None and (out / "smoke-A0-s7.pt").exists()
 
 
-def test_drain_appends_results(tmp_path):
+def test_drain_writes_one_result_file_per_run(tmp_path):
     data_dir, _, queue = _setup(tmp_path)
-    results = tmp_path / "results.jsonl"
+    results = tmp_path / "results" / "runs"
     rows = drain(queue, data_dir, results, device="cpu")
     assert [r["run"] for r in rows] == ["smoke-A0-s7", "smoke-A2-s7"]
-    lines = [json.loads(l) for l in results.read_text().splitlines()]
-    assert len(lines) == 2 and lines[1]["arm"] == "A2"
+    written = sorted(p.name for p in results.glob("*.json"))
+    assert written == ["smoke-A0-s7.json", "smoke-A2-s7.json"]
+    assert json.loads((results / "smoke-A2-s7.json").read_text())["arm"] == "A2"
     assert drain(queue, data_dir, results, device="cpu") == []  # everything done ⇒ no-op
 
 
 def test_drain_per_entry_error_isolation(tmp_path):
     data_dir, cfgs, _ = _setup(tmp_path)
-    results = tmp_path / "results.jsonl"
+    results = tmp_path / "results" / "runs"
     # Create queue with nonexistent config on first line, valid config on second
     queue = tmp_path / "queue_with_error.txt"
     queue.write_text(f"{tmp_path}/nonexistent.yaml\n{cfgs[0]}\n")
     rows = drain(queue, data_dir, results, device="cpu")
     # Verify drain completed despite first entry error, finished the valid run
     assert len(rows) == 1 and rows[0]["run"] == "smoke-A0-s7"
-    lines = [json.loads(l) for l in results.read_text().splitlines()]
-    assert len(lines) == 1  # Only one results line (the successful run)
+    assert sorted(p.name for p in results.glob("*.json")) == ["smoke-A0-s7.json"]
 
 
 def test_drain_stops_at_stop_step_without_starting_next_entry(tmp_path):
     # A --stop-step session must bound the ONE run active when it ends, not start every queued
     # run for one step each: drain must BREAK (not `continue`) when a run pauses.
     data_dir, cfgs, queue = _setup(tmp_path)
-    results = tmp_path / "results.jsonl"
+    results = tmp_path / "results" / "runs"
     rows = drain(queue, data_dir, results, device="cpu", stop_step=2)
     assert rows == []
     out0 = tmp_path / "runs" / "smoke-A0-s7"
     out1 = tmp_path / "runs" / "smoke-A2-s7"
     assert (out0 / "resume.pt").exists()  # first entry paused mid-run
     assert not out1.exists()  # second entry never started
-    assert not results.exists() or results.read_text() == ""
+    assert list(results.glob("*.json")) == []
 
 
 def test_run_one_rejects_resume_with_changed_config(tmp_path):
@@ -111,7 +111,7 @@ def test_run_one_rejects_resume_with_changed_config(tmp_path):
 
 def test_drain_reports_resume_config_mismatch_as_failure(tmp_path):
     data_dir, cfgs, queue = _setup(tmp_path)
-    results = tmp_path / "results.jsonl"
+    results = tmp_path / "results" / "runs"
     assert run_one(cfgs[0], data_dir, device="cpu", stop_step=2) is PAUSED
 
     spec = yaml.safe_load(cfgs[0].read_text())
@@ -123,3 +123,32 @@ def test_drain_reports_resume_config_mismatch_as_failure(tmp_path):
     # First entry fails config validation; drain isolates the error and continues to the second.
     assert [r["run"] for r in rows] == ["smoke-A2-s7"]
     assert len(failures) == 1 and "lr" in failures[0]
+
+
+# --- P0 item 1/3/4 wiring: every run must leave a metrics trail and an enriched row ---------
+
+def test_run_one_writes_metrics_and_enriched_row(tmp_path):
+    data_dir, cfgs, _ = _setup(tmp_path)
+    row = run_one(cfgs[0], data_dir, device="cpu")
+    out = tmp_path / "runs" / "smoke-A0-s7"
+
+    metrics = out / "metrics.jsonl"
+    assert metrics.exists(), "no per-run metrics.jsonl written"
+    recs = [json.loads(x) for x in metrics.read_text().splitlines() if x.strip()]
+    assert recs and all("step" in r and "loss" in r for r in recs)
+    assert any("val_loss" in r for r in recs), "no val loss recorded during training"
+
+    assert "final_train_loss" in row
+    assert "final_val_loss" in row
+    assert "kv_bytes_ctx512_b1" in row and "weight_bytes_bf16" in row
+
+
+def test_metrics_jsonl_survives_resume_without_truncation(tmp_path):
+    """A resumed run must append to its metrics trail, not start a fresh one."""
+    data_dir, cfgs, _ = _setup(tmp_path)
+    run_one(cfgs[0], data_dir, device="cpu", stop_step=2)
+    out = tmp_path / "runs" / "smoke-A0-s7"
+    first = len([x for x in (out / "metrics.jsonl").read_text().splitlines() if x.strip()])
+    run_one(cfgs[0], data_dir, device="cpu")
+    second = len([x for x in (out / "metrics.jsonl").read_text().splitlines() if x.strip()])
+    assert second > first, "metrics trail was truncated on resume"

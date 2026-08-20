@@ -9,10 +9,14 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import torch
+
 from hallm.data import load_bin
 from hallm.eval import evaluate_arm
 from hallm.experiment import load_experiment
 from hallm.manifest import build_manifest, write_manifest
+from hallm.metrics import memory_row
+from hallm.results import write_run_result
 from hallm.model import GPT
 from hallm.train import load_resume_checkpoint, save_checkpoint, set_seed, train
 
@@ -65,33 +69,50 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
             print(f"[stop] {name}: resume checkpoint already at step {ckpt['step']} >= stop_step {stop_step}")
             return PAUSED
 
+    val_data = load_bin(data_dir / "val.bin")
+    metrics_path = out / "metrics.jsonl"   # appended to across sessions; never truncated on resume
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+
     set_seed(train_cfg.seed, train_cfg.deterministic)  # seeds init; resume overwrites weights if present
     model = GPT(model_cfg)
     print(f"[run ] {name}: {'resuming' if resume.exists() else 'fresh'} on {device}")
-    train(model, train_cfg, load_bin(data_dir / "train.bin"), device=device, progress=True,
-          resume_path=str(resume), stop_step=stop_step)
+    history = train(model, train_cfg, load_bin(data_dir / "train.bin"), device=device, progress=True,
+                    resume_path=str(resume), stop_step=stop_step,
+                    val_data=val_data, metrics_path=str(metrics_path))
     if stop_step is not None and stop_step < train_cfg.max_steps:
         print(f"[stop] {name}: paused at step {stop_step} (resume.pt saved)")
         return PAUSED
 
     save_checkpoint(model, model_cfg, train_cfg, final)
-    row = evaluate_arm(model, model_cfg, load_bin(data_dir / "val.bin"), batch_size=8, device=device)
+    row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device)
     row["run"] = name
+    # Measured memory + the train/val endpoints, so the generalisation gap is recoverable later
+    # without re-reading a log that may not survive the session (spec P0 items 1, 3, 4).
+    row.update(memory_row(model, model_cfg))
+    if history:
+        row["final_train_loss"] = round(history[-1]["loss"], 4)
+        vals = [h["val_loss"] for h in history if "val_loss" in h]
+        if vals:
+            row["final_val_loss"] = round(vals[-1], 4)
+    if torch.cuda.is_available():
+        row["peak_vram_bytes"] = int(torch.cuda.max_memory_allocated())
     return row
 
 
-def drain(queue_file: str | Path, data_dir: str | Path, results_path: str | Path, device: str,
+def drain(queue_file: str | Path, data_dir: str | Path, results_dir: str | Path, device: str,
           max_runs: int | None = None, stop_step: int | None = None,
           failures: list[str] | None = None) -> list[dict]:
-    """Process queue entries in order; append each finished run's eval row to `results_path`.
+    """Process queue entries in order; write each finished run's eval row to its OWN file under
+    `results_dir` (see hallm.results — one file per run, never a shared append-only ledger).
 
     Stops (without starting the next entry) as soon as a run pauses at `stop_step` — a bounded
     session must bound the ONE run active when it ends, not every queued run. If `failures` is
     given, the queue entry (and error) for each failed run is appended to it."""
     entries = [line.strip() for line in Path(queue_file).read_text().splitlines()]
     entries = [line for line in entries if line and not line.startswith("#")]
-    results_path = Path(results_path)
-    results_path.parent.mkdir(parents=True, exist_ok=True)
+    results_dir = Path(results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     for entry in entries:
         try:
@@ -107,8 +128,7 @@ def drain(queue_file: str | Path, data_dir: str | Path, results_path: str | Path
             break
         if row is None:
             continue
-        with results_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(row) + "\n")
+        write_run_result(results_dir, row)
         rows.append(row)
         if max_runs is not None and len(rows) >= max_runs:
             break
