@@ -123,3 +123,32 @@ def test_drain_reports_resume_config_mismatch_as_failure(tmp_path):
     # First entry fails config validation; drain isolates the error and continues to the second.
     assert [r["run"] for r in rows] == ["smoke-A2-s7"]
     assert len(failures) == 1 and "lr" in failures[0]
+
+
+# --- P0 item 1/3/4 wiring: every run must leave a metrics trail and an enriched row ---------
+
+def test_run_one_writes_metrics_and_enriched_row(tmp_path):
+    data_dir, cfgs, _ = _setup(tmp_path)
+    row = run_one(cfgs[0], data_dir, device="cpu")
+    out = tmp_path / "runs" / "smoke-A0-s7"
+
+    metrics = out / "metrics.jsonl"
+    assert metrics.exists(), "no per-run metrics.jsonl written"
+    recs = [json.loads(x) for x in metrics.read_text().splitlines() if x.strip()]
+    assert recs and all("step" in r and "loss" in r for r in recs)
+    assert any("val_loss" in r for r in recs), "no val loss recorded during training"
+
+    assert "final_train_loss" in row
+    assert "final_val_loss" in row
+    assert "kv_bytes_ctx512_b1" in row and "weight_bytes_bf16" in row
+
+
+def test_metrics_jsonl_survives_resume_without_truncation(tmp_path):
+    """A resumed run must append to its metrics trail, not start a fresh one."""
+    data_dir, cfgs, _ = _setup(tmp_path)
+    run_one(cfgs[0], data_dir, device="cpu", stop_step=2)
+    out = tmp_path / "runs" / "smoke-A0-s7"
+    first = len([x for x in (out / "metrics.jsonl").read_text().splitlines() if x.strip()])
+    run_one(cfgs[0], data_dir, device="cpu")
+    second = len([x for x in (out / "metrics.jsonl").read_text().splitlines() if x.strip()])
+    assert second > first, "metrics trail was truncated on resume"

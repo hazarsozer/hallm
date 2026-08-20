@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import subprocess
 import sys
@@ -21,7 +22,8 @@ import torch
 from hallm.model.config import ModelConfig
 from hallm.train import TrainConfig
 
-_ENV_KEYS = {"created_utc", "gpu", "platform", "config_path"}  # legit differences within a pair
+# legit differences within a pair; `determinism` is an OBSERVATION of the host, not a variable
+_ENV_KEYS = {"created_utc", "gpu", "platform", "config_path", "determinism"}
 
 
 def file_sha256(path: str | Path) -> str:
@@ -33,6 +35,11 @@ def file_sha256(path: str | Path) -> str:
 
 
 def _git_commit(repo_dir: str | Path = ".") -> str:
+    # The GPU box is not a git checkout, which is why every pre-P0 manifest recorded "unknown".
+    # The launcher exports the commit it deployed instead of turning the box into a checkout.
+    env = os.environ.get("HALLM_GIT_COMMIT", "").strip()
+    if env:
+        return env
     try:
         out = subprocess.run(
             ["git", "rev-parse", "HEAD"], cwd=repo_dir, capture_output=True, text=True, timeout=10
@@ -61,6 +68,16 @@ def build_manifest(
         "torch": torch.__version__,
         "platform": platform.platform(),
         "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+        "determinism": {
+            # `deterministic: true` in train_cfg is a REQUEST. Flash SDP's backward is
+            # non-deterministic and warns so at runtime, so record what is actually true rather
+            # than asserting a reproducibility property the run does not have (spec P0 item 5).
+            "requested": train_cfg.deterministic,
+            "flash_sdp_enabled": bool(torch.backends.cuda.flash_sdp_enabled())
+            if torch.cuda.is_available()
+            else False,
+            "torch_deterministic_algorithms": bool(torch.are_deterministic_algorithms_enabled()),
+        },
     }
 
 

@@ -44,3 +44,42 @@ def test_controlled_pair_diff():
     diff = manifest_diff(a, b)
     assert set(diff) == {"model_cfg.share_intra_ffn", "model_cfg.share_intra_attn"}
     assert manifest_diff(a, a) == {}
+
+
+# --- P0 items 2 and 5: provenance the manifest previously got wrong -------------------------
+
+def test_git_commit_env_override(monkeypatch):
+    """The GPU box is not a git checkout, so the launcher exports the deployed commit."""
+    from hallm.manifest import _git_commit
+
+    monkeypatch.setenv("HALLM_GIT_COMMIT", "deadbeef1234")
+    assert _git_commit(".") == "deadbeef1234"
+
+
+def test_git_commit_env_override_ignores_blank(monkeypatch):
+    from hallm.manifest import _git_commit
+
+    monkeypatch.setenv("HALLM_GIT_COMMIT", "   ")
+    assert _git_commit("/nonexistent-path-xyz") == "unknown"
+
+
+def test_manifest_records_determinism_truth():
+    """`deterministic: true` was asserted while Flash SDP's backward is non-deterministic."""
+    from hallm.manifest import build_manifest
+    from hallm.model.config import SHAPES
+    from hallm.train import TrainConfig
+
+    m = build_manifest(SHAPES["smoke"], TrainConfig(deterministic=True))
+    assert "determinism" in m
+    assert m["determinism"]["requested"] is True
+    assert "flash_sdp_enabled" in m["determinism"]
+    assert "torch_deterministic_algorithms" in m["determinism"]
+
+
+def test_determinism_block_is_not_a_pair_invalidating_difference():
+    """Two runs differing only in observed determinism state are still a valid pair."""
+    from hallm.manifest import manifest_diff
+
+    a = {"model_cfg": {"n_layer": 8}, "determinism": {"flash_sdp_enabled": True}}
+    b = {"model_cfg": {"n_layer": 8}, "determinism": {"flash_sdp_enabled": False}}
+    assert manifest_diff(a, b) == {}

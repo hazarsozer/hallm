@@ -41,3 +41,56 @@ def test_generate_ladder(tmp_path):
 
     qfile = (tmp_path / "queue.txt").read_text().splitlines()
     assert qfile == queue
+
+
+# --- P1: mechanism decomposition. Which sublayer's sharing causes the tax? ------------------
+
+def test_generate_p1_creates_four_configs_with_correct_flags(tmp_path):
+    from hallm.experiment import load_experiment
+    from scripts.gen_ladder_configs import generate_p1
+
+    queue = generate_p1(tmp_path)
+    assert len(queue) == 4
+
+    names = {p.split("/")[-1] for p in queue}
+    assert names == {"L8-A2ffn-s1337.yaml", "L8-A2ffn-s1338.yaml",
+                     "L8-A2attn-s1337.yaml", "L8-A2attn-s1338.yaml"}
+
+    mc, tc = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
+    assert mc.share_intra_ffn is True and mc.share_intra_attn is False
+    assert mc.share_cross_layer is False
+    assert mc.n_layer == 8 and tc.seed == 1337 and tc.max_steps == 50_000
+
+    mc, _ = load_experiment(tmp_path / "L8-A2attn-s1338.yaml")
+    assert mc.share_intra_ffn is False and mc.share_intra_attn is True
+
+
+def test_p1_protocol_matches_the_completed_l8_runs(tmp_path):
+    """P1 is compared against completed L8 A0/A2 runs, so the recipe must be byte-identical."""
+    from hallm.experiment import load_experiment
+    from scripts.gen_ladder_configs import generate_p1
+
+    generate_p1(tmp_path)
+    _, p1 = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
+    _, baseline = load_experiment("configs/ladder/L8-A0-s1338.yaml")
+    for field in ("lr", "min_lr", "warmup_steps", "max_steps", "weight_decay", "grad_clip",
+                  "batch_size", "grad_accum", "dtype", "block_size"):
+        assert getattr(p1, field) == getattr(baseline, field), f"{field} drifted from the protocol"
+
+
+def test_p1_storage_savings_are_the_expected_thirds(tmp_path):
+    """FFN-only saves 33.3% of per-layer non-embedding storage, attn-only 16.7%, both 50%."""
+    from hallm.experiment import load_experiment
+    from hallm.metrics import count_parameters
+    from hallm.model.gpt import GPT
+    from scripts.gen_ladder_configs import generate_p1
+
+    generate_p1(tmp_path)
+    base, _ = load_experiment("configs/ladder/L8-A0-s1338.yaml")
+    ffn, _ = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
+    attn, _ = load_experiment(tmp_path / "L8-A2attn-s1337.yaml")
+
+    n = {k: count_parameters(GPT(c))["non_embedding"] for k, c in
+         (("base", base), ("ffn", ffn), ("attn", attn))}
+    assert abs((1 - n["ffn"] / n["base"]) - 1 / 3) < 0.01
+    assert abs((1 - n["attn"] / n["base"]) - 1 / 6) < 0.01

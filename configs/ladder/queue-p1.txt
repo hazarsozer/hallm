@@ -1,0 +1,4 @@
+configs/ladder/L8-A2ffn-s1337.yaml
+configs/ladder/L8-A2ffn-s1338.yaml
+configs/ladder/L8-A2attn-s1337.yaml
+configs/ladder/L8-A2attn-s1338.yaml

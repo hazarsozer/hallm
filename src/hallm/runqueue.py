@@ -9,10 +9,13 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import torch
+
 from hallm.data import load_bin
 from hallm.eval import evaluate_arm
 from hallm.experiment import load_experiment
 from hallm.manifest import build_manifest, write_manifest
+from hallm.metrics import memory_row
 from hallm.model import GPT
 from hallm.train import load_resume_checkpoint, save_checkpoint, set_seed, train
 
@@ -65,18 +68,34 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
             print(f"[stop] {name}: resume checkpoint already at step {ckpt['step']} >= stop_step {stop_step}")
             return PAUSED
 
+    val_data = load_bin(data_dir / "val.bin")
+    metrics_path = out / "metrics.jsonl"   # appended to across sessions; never truncated on resume
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats()
+
     set_seed(train_cfg.seed, train_cfg.deterministic)  # seeds init; resume overwrites weights if present
     model = GPT(model_cfg)
     print(f"[run ] {name}: {'resuming' if resume.exists() else 'fresh'} on {device}")
-    train(model, train_cfg, load_bin(data_dir / "train.bin"), device=device, progress=True,
-          resume_path=str(resume), stop_step=stop_step)
+    history = train(model, train_cfg, load_bin(data_dir / "train.bin"), device=device, progress=True,
+                    resume_path=str(resume), stop_step=stop_step,
+                    val_data=val_data, metrics_path=str(metrics_path))
     if stop_step is not None and stop_step < train_cfg.max_steps:
         print(f"[stop] {name}: paused at step {stop_step} (resume.pt saved)")
         return PAUSED
 
     save_checkpoint(model, model_cfg, train_cfg, final)
-    row = evaluate_arm(model, model_cfg, load_bin(data_dir / "val.bin"), batch_size=8, device=device)
+    row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device)
     row["run"] = name
+    # Measured memory + the train/val endpoints, so the generalisation gap is recoverable later
+    # without re-reading a log that may not survive the session (spec P0 items 1, 3, 4).
+    row.update(memory_row(model, model_cfg))
+    if history:
+        row["final_train_loss"] = round(history[-1]["loss"], 4)
+        vals = [h["val_loss"] for h in history if "val_loss" in h]
+        if vals:
+            row["final_val_loss"] = round(vals[-1], 4)
+    if torch.cuda.is_available():
+        row["peak_vram_bytes"] = int(torch.cuda.max_memory_allocated())
     return row
 
 

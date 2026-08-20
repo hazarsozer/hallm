@@ -11,6 +11,7 @@ test (a few steps) and by the Term-2 `scripts/run_real_training.py` (GPU, manual
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import random
@@ -114,6 +115,8 @@ def train(
     progress: bool = False,
     resume_path: str | None = None,
     stop_step: int | None = None,
+    val_data: np.ndarray | None = None,
+    metrics_path: str | None = None,
 ) -> list[dict]:
     """Run the matched-budget loop. Returns a history of {step, loss, lr} log dicts.
 
@@ -134,6 +137,9 @@ def train(
     model.train()
     opt = configure_optimizer(model, train_cfg.weight_decay, train_cfg.lr, (train_cfg.beta1, train_cfg.beta2))
     gen = torch.Generator().manual_seed(train_cfg.seed)  # data order — identical across arms
+    # SEPARATE generator for the val probe: drawing eval batches from `gen` would advance the
+    # training data order and make every already-completed run incomparable (spec P0 item 1).
+    eval_gen = torch.Generator().manual_seed(train_cfg.seed + 10_000)
 
     start_step = 0
     if resume_path and os.path.exists(resume_path):
@@ -173,9 +179,20 @@ def train(
         opt.step()
 
         if step % train_cfg.log_interval == 0 or step == train_cfg.max_steps - 1:
-            history.append({"step": step, "loss": loss_accum, "lr": lr})
+            rec = {"step": step, "loss": loss_accum, "lr": lr}
+            if (
+                val_data is not None
+                and train_cfg.eval_interval > 0
+                and (step % train_cfg.eval_interval == 0 or step == train_cfg.max_steps - 1)
+            ):
+                rec["val_loss"] = estimate_loss(model, val_data, train_cfg, device, eval_gen)
+            history.append(rec)
+            if metrics_path:
+                with open(metrics_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec) + "\n")
             if progress:
-                print(f"step {step:6d} | loss {loss_accum:.4f} | lr {lr:.2e}")
+                extra = f" | val {rec['val_loss']:.4f}" if "val_loss" in rec else ""
+                print(f"step {step:6d} | loss {loss_accum:.4f} | lr {lr:.2e}{extra}")
 
         done = step + 1
         at_interval = train_cfg.checkpoint_interval > 0 and done % train_cfg.checkpoint_interval == 0
