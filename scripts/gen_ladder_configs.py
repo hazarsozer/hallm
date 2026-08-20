@@ -53,7 +53,11 @@ def generate(out_dir: str | Path) -> list[str]:
 # the same x (weak path, risk R1). These ARMS entries are implemented and unit-tested but have
 # never been run. Run-ID arm tags carry no hyphen, per the artifact-layout run-ID grammar.
 P1_ARMS = {"A2ffn": "A2-ffn", "A2attn": "A2-attn"}
-P1_SEEDS = [1337, 1338]
+# Seed 1339 included so P1 matches the seed coverage of the main ladder. NOTE: its tax
+# needs L8-A0-s1339 as the baseline, which is assigned to Alper on issue #1 — the s1339
+# ablations are therefore queued LAST, so seeds 1337/1338 (whose baselines we already
+# hold) produce a complete, self-contained decomposition first.
+P1_SEEDS = [1337, 1338, 1339]
 
 
 def generate_p1(out_dir: str | Path) -> list[str]:
@@ -65,8 +69,8 @@ def generate_p1(out_dir: str | Path) -> list[str]:
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     queue: list[str] = []
-    for tag, arm in P1_ARMS.items():
-        for seed in P1_SEEDS:
+    for seed in P1_SEEDS:          # seed-major: both arms of a seed land together
+        for tag, arm in P1_ARMS.items():
             name = f"L8-{tag}-s{seed}"
             spec = {
                 "shape": "s30",
@@ -80,7 +84,7 @@ def generate_p1(out_dir: str | Path) -> list[str]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--out", default="configs/ladder")
+    ap.add_argument("--out", default="configs/runs")
     ap.add_argument("--p1", action="store_true",
                     help="generate the P1 mechanism-decomposition configs + queue-p1.txt instead")
     args = ap.parse_args()

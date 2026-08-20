@@ -48,7 +48,8 @@ A0-deep is the unshared control at the same depth (its "virtual" size).
 Campaign spec: `wiki/roadmap/06-scaling-campaign.md`. Depth-scaled ladder at d=512 testing
 **H-S: the sharing tax shrinks with scale.** New runs use the identical protocol (seeds 1338/1339
 added); rows for L8/L16 seed 1337 are Experiments 1–2 restated in ladder form. Raw rows:
-`results/ladder.jsonl`; frozen per-run manifests: `results/manifests/`.
+one JSON per run under `results/runs/`; frozen per-run manifests:
+`results/manifests/`; generated comparison tables: `results/reports/`.
 
 | rung | seed | unshared PPL | shared (W+Wᵀ) PPL | tax |
 |------|------|-------------|-------------------|-----|

@@ -50,11 +50,17 @@ def test_generate_p1_creates_four_configs_with_correct_flags(tmp_path):
     from scripts.gen_ladder_configs import generate_p1
 
     queue = generate_p1(tmp_path)
-    assert len(queue) == 4
+    assert len(queue) == 6
 
     names = {p.split("/")[-1] for p in queue}
-    assert names == {"L8-A2ffn-s1337.yaml", "L8-A2ffn-s1338.yaml",
-                     "L8-A2attn-s1337.yaml", "L8-A2attn-s1338.yaml"}
+    assert names == {f"L8-{t}-s{s}.yaml" for t in ("A2ffn", "A2attn")
+                     for s in (1337, 1338, 1339)}
+
+    # seed-major ordering: both arms of seed 1337 must complete before 1338 starts, so a
+    # self-contained decomposition exists as early as possible.
+    order = [p.split("/")[-1] for p in queue]
+    assert order[:2] == ["L8-A2ffn-s1337.yaml", "L8-A2attn-s1337.yaml"]
+    assert order[-2:] == ["L8-A2ffn-s1339.yaml", "L8-A2attn-s1339.yaml"]
 
     mc, tc = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
     assert mc.share_intra_ffn is True and mc.share_intra_attn is False
@@ -72,7 +78,7 @@ def test_p1_protocol_matches_the_completed_l8_runs(tmp_path):
 
     generate_p1(tmp_path)
     _, p1 = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
-    _, baseline = load_experiment("configs/ladder/L8-A0-s1338.yaml")
+    _, baseline = load_experiment("configs/runs/L8-A0-s1338.yaml")
     for field in ("lr", "min_lr", "warmup_steps", "max_steps", "weight_decay", "grad_clip",
                   "batch_size", "grad_accum", "dtype", "block_size"):
         assert getattr(p1, field) == getattr(baseline, field), f"{field} drifted from the protocol"
@@ -86,7 +92,7 @@ def test_p1_storage_savings_are_the_expected_thirds(tmp_path):
     from scripts.gen_ladder_configs import generate_p1
 
     generate_p1(tmp_path)
-    base, _ = load_experiment("configs/ladder/L8-A0-s1338.yaml")
+    base, _ = load_experiment("configs/runs/L8-A0-s1338.yaml")
     ffn, _ = load_experiment(tmp_path / "L8-A2ffn-s1337.yaml")
     attn, _ = load_experiment(tmp_path / "L8-A2attn-s1337.yaml")
 

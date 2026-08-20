@@ -16,6 +16,7 @@ from hallm.eval import evaluate_arm
 from hallm.experiment import load_experiment
 from hallm.manifest import build_manifest, write_manifest
 from hallm.metrics import memory_row
+from hallm.results import write_run_result
 from hallm.model import GPT
 from hallm.train import load_resume_checkpoint, save_checkpoint, set_seed, train
 
@@ -99,18 +100,19 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
     return row
 
 
-def drain(queue_file: str | Path, data_dir: str | Path, results_path: str | Path, device: str,
+def drain(queue_file: str | Path, data_dir: str | Path, results_dir: str | Path, device: str,
           max_runs: int | None = None, stop_step: int | None = None,
           failures: list[str] | None = None) -> list[dict]:
-    """Process queue entries in order; append each finished run's eval row to `results_path`.
+    """Process queue entries in order; write each finished run's eval row to its OWN file under
+    `results_dir` (see hallm.results — one file per run, never a shared append-only ledger).
 
     Stops (without starting the next entry) as soon as a run pauses at `stop_step` — a bounded
     session must bound the ONE run active when it ends, not every queued run. If `failures` is
     given, the queue entry (and error) for each failed run is appended to it."""
     entries = [line.strip() for line in Path(queue_file).read_text().splitlines()]
     entries = [line for line in entries if line and not line.startswith("#")]
-    results_path = Path(results_path)
-    results_path.parent.mkdir(parents=True, exist_ok=True)
+    results_dir = Path(results_dir)
+    results_dir.mkdir(parents=True, exist_ok=True)
     rows: list[dict] = []
     for entry in entries:
         try:
@@ -126,8 +128,7 @@ def drain(queue_file: str | Path, data_dir: str | Path, results_path: str | Path
             break
         if row is None:
             continue
-        with results_path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(row) + "\n")
+        write_run_result(results_dir, row)
         rows.append(row)
         if max_runs is not None and len(rows) >= max_runs:
             break
