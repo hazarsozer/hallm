@@ -35,8 +35,13 @@ A0-deep is the unshared control at the same depth (its "virtual" size).
   (29.68 vs 26.06, +13.9%) or at iso-compute (27.01 vs 23.98, +12.7%).
 - At **iso-storage**, the shallow unshared model still wins (26.06 < 27.01): W+Wᵀ-bought
   depth does not beat spending the same memory on unshared width at this scale.
-- Notable: A2-iso reached a *lower final train loss* than A0 (3.29 vs 3.81) while testing
-  worse — the shared-deep model fits better but generalizes worse (all runs use dropout 0.0).
+- **Correction (2026-08-20).** An earlier version of this section read "A2-iso reached a lower
+  final train loss than A0 (3.29 vs 3.81) while testing worse — fits better, generalizes worse."
+  That comparison is **depth-confounded**: A2-iso is L=16 and A0 is L=8, so the lower train loss is
+  a depth effect, not a sharing effect. The honest comparison is A2-iso vs **A0-deep** (both L=16),
+  and it cannot be recovered — per-run loss curves were never saved. Training now writes a
+  `metrics.jsonl` per run, so the train/test gap is answerable from the next cohort onward.
+  No claim about sharing and generalization is supported by the current data.
 
 ## Experiment 3 — Scaling ladder (Term 2, IN PROGRESS)
 
@@ -72,7 +77,9 @@ added); rows for L8/L16 seed 1337 are Experiments 1–2 restated in ladder form.
 
 Single seed; single scale (25–50M); 614M-token budget (shared arms are relatively
 over-trained per stored parameter). Planned: multi-seed error bars; longer budgets;
-dropout > 0 for the iso probe (the train/test gap suggests regularization may narrow it);
+dropout > 0 for the iso probe (motivated as a regularization probe in its own right — the
+train/test-gap rationale previously given here rested on the depth-confounded comparison corrected
+in Experiment 2 above);
 partial-depth sharing (official HaLViT code shares only later stages); cross-validation
 against the independent implementation in alpericon/wplusw-lm.
 
