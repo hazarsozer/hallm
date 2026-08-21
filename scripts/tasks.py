@@ -99,18 +99,38 @@ def new_commits() -> list[dict]:
 
 
 RULES_FILE = "COLLABORATOR.md"
-POINTER = """# HaLLM — local pointer (personal, gitignored)
+POINTER = """# HaLLM — collaborator instructions (personal, gitignored)
 
-You are a collaborator on this repository, not its owner.
+You are a collaborator on this repository, not its owner. This is a controlled scientific
+experiment: silent deviations destroy results, and the damage is usually invisible until
+someone tries to publish the number.
 
-Read `COLLABORATOR.md` in the repo root at the start of every session and follow it
-exactly. It is the maintained, versioned source of the rules; this file only points at it.
+## Never (these are the hard ones — inlined so they load unconditionally)
 
-When asked whether there are tasks or updates, run:
+- Never push to `main`. Work on a branch and open a PR.
+- Never force-push, hard-reset pushed work, or rebase a shared branch.
+- Never edit anything in `configs/`. Config drift invalidates a pair.
+- Never edit `results/reports/*.md` — they are generated from `results/runs/*.json`.
+- Never start a training run unless told to in that session. Not to "verify", not to "test".
+- HuggingFace: only ADD files under `checkpoints/<run-id>/`. Never delete, move, rename or
+  overwrite an existing path; never change repo settings or org membership.
+- If anything is unclear or reality does not match instructions: STOP and report in plain
+  English. Do not improvise a workaround.
+
+## Tasks and updates
+
+When asked whether there is anything to do — or at the start of a session — run:
 
     uv run python scripts/tasks.py check
 
-That command is read-only and safe at any time, including mid-training.
+Read-only and safe at any time, including mid-training: it uses `git fetch`, never `git pull`.
+Discovery never executes. Explain the task to the human in plain language and ask before
+starting anything.
+
+## Full rules
+
+`COLLABORATOR.md` in the repo root is the maintained, versioned source. Read it at the start
+of a session. The rules above are the subset that must apply even if you never open it.
 """
 
 
