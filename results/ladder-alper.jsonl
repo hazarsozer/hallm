@@ -1,0 +1,2 @@
+{"arm": "A0", "non_embedding_params_M": 12.5875, "total_params_M": 38.5812, "size_fp32_MB": 147.176, "size_bf16_MB": 73.588, "fwd_gflops": 41.3815, "test_ppl": 29.1827, "run": "L4-A0-s1339"}
+{"arm": "A2", "non_embedding_params_M": 6.2961, "total_params_M": 32.2898, "size_fp32_MB": 123.176, "size_bf16_MB": 61.588, "fwd_gflops": 41.3815, "test_ppl": 33.7089, "run": "L4-A2-s1339"}

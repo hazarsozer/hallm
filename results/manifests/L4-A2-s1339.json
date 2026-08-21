@@ -1,0 +1,53 @@
+{
+  "config_path": "configs\\ladder\\L4-A2-s1339.yaml",
+  "created_utc": "2026-08-20T14:10:01+00:00",
+  "data_sha256": {
+    "train.bin": "c36727c10ace9aaca6e13786863fb9fbb5dfa354d93d604e2cc415d85bada12a",
+    "val.bin": "ba1fa893453dd6e475c337fb524923709f08be0548dbe27a1fce438b65eab9d8"
+  },
+  "git_commit": "35a0a075f4875b687118aeb4ca684d000d237db3",
+  "gpu": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+  "model_cfg": {
+    "bias": false,
+    "block_size": 512,
+    "dropout": 0.0,
+    "ffn_mult": 4,
+    "n_embd": 512,
+    "n_head": 8,
+    "n_layer": 4,
+    "share_cross_layer": false,
+    "share_intra_attn": true,
+    "share_intra_ffn": true,
+    "sharing_warmup_steps": 0,
+    "tie_embeddings": true,
+    "vocab_size": 50257
+  },
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.13.14",
+  "tokenizer": "gpt2",
+  "torch": "2.13.0+cu126",
+  "train_cfg": {
+    "batch_size": 12,
+    "beta1": 0.9,
+    "beta2": 0.95,
+    "block_size": 512,
+    "checkpoint_interval": 1000,
+    "dataset": "wikitext-103",
+    "deterministic": true,
+    "dtype": "bfloat16",
+    "eval_interval": 1000,
+    "eval_iters": 100,
+    "grad_accum": 2,
+    "grad_checkpoint": false,
+    "grad_clip": 1.0,
+    "log_interval": 50,
+    "lr": 0.0006,
+    "max_steps": 50000,
+    "min_lr": 6e-05,
+    "out_dir": "runs/ladder/L4-A2-s1339",
+    "seed": 1339,
+    "tokenizer": "gpt2",
+    "warmup_steps": 200,
+    "weight_decay": 0.1
+  }
+}
