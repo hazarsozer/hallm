@@ -60,27 +60,39 @@ P1_ARMS = {"A2ffn": "A2-ffn", "A2attn": "A2-attn"}
 P1_SEEDS = [1337, 1338, 1339]
 
 
-def generate_p1(out_dir: str | Path) -> list[str]:
-    """Generate the P1 ablation configs at the L8 rung; return queue entries in drain order.
+def generate_ablations(out_dir: str | Path, rung: str = "L8", seeds: list[int] | None = None,
+                       queue_name: str | None = None) -> list[str]:
+    """Generate the mechanism-decomposition configs at one rung; queue entries in drain order.
 
-    Protocol constants come from TRAIN verbatim, because P1 is compared against the already
-    completed L8 A0/A2 pairs — any drift in the recipe invalidates that comparison.
+    Protocol constants come from TRAIN verbatim, because an ablation is only meaningful against
+    the already-completed A0 baseline at the same rung and seed — any recipe drift invalidates it.
+
+    Seed-major ordering: both arms of a seed land together, so a complete decomposition exists as
+    early as possible rather than only after every run finishes.
     """
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
+    shape = RUNGS[rung]
+    seeds = seeds if seeds is not None else list(P1_SEEDS)
     queue: list[str] = []
-    for seed in P1_SEEDS:          # seed-major: both arms of a seed land together
+    for seed in seeds:
         for tag, arm in P1_ARMS.items():
-            name = f"L8-{tag}-s{seed}"
+            name = f"{rung}-{tag}-s{seed}"
             spec = {
-                "shape": "s30",
+                "shape": shape,
                 "arm": arm,
                 "train": {**TRAIN, "seed": seed, "out_dir": f"runs/ladder/{name}"},
             }
             (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
             queue.append(str(out / f"{name}.yaml"))
-    (out / "queue-p1.txt").write_text("\n".join(queue) + "\n", encoding="utf-8")
+    qn = queue_name or f"queue-ablations-{rung.lower()}.txt"
+    (out / qn).write_text("\n".join(queue) + "\n", encoding="utf-8")
     return queue
+
+
+def generate_p1(out_dir: str | Path) -> list[str]:
+    """The original P1 cohort: mechanism decomposition at L8, three seeds."""
+    return generate_ablations(out_dir, rung="L8", seeds=list(P1_SEEDS), queue_name="queue-p1.txt")
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)

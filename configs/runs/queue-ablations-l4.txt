@@ -1,0 +1,4 @@
+configs/runs/L4-A2ffn-s1337.yaml
+configs/runs/L4-A2attn-s1337.yaml
+configs/runs/L4-A2ffn-s1338.yaml
+configs/runs/L4-A2attn-s1338.yaml
