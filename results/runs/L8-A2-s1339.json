@@ -1,0 +1,18 @@
+{
+  "arm": "A2",
+  "final_train_loss": 3.1799,
+  "final_val_loss": 3.3693,
+  "fwd_gflops": 56.4139,
+  "kv_bytes_ctx2048_b8": 268435456,
+  "kv_bytes_ctx512_b1": 8388608,
+  "non_embedding_params_M": 12.5916,
+  "nonemb_weight_bytes_bf16": 25183232,
+  "peak_vram_bytes": 5520824320,
+  "run": "L8-A2-s1339",
+  "size_bf16_MB": 73.596,
+  "size_fp32_MB": 147.191,
+  "test_ppl": 29.7832,
+  "total_params_M": 38.5853,
+  "weight_bytes_bf16": 77170688,
+  "weight_frac_of_total_ctx512_b1": 0.902
+}

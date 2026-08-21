@@ -9,21 +9,25 @@ OV circuits (weak path, risk R1). Pre-registered: tax(attn-only) > tax(ffn-only)
 |---|---|---|---|---|---|---|
 | L4 | 1337 | A2 | 33.4981 | 14.94 | 50.0 | 0.299 |
 | L4 | 1338 | A2 | 33.5997 | 15.60 | 50.0 | 0.312 |
+| L4 | 1339 | A2 | 33.7089 | 15.51 | 50.0 | 0.310 |
 | L8 | 1337 | A2 | 29.6770 | 13.88 | 50.0 | 0.278 |
 | L8 | 1337 | A2ffn | 28.3967 | 8.96 | 33.3 | 0.269 |
 | L8 | 1337 | A2attn | 27.0692 | 3.87 | 16.7 | 0.232 |
 | L8 | 1338 | A2 | 29.8213 | 15.01 | 50.0 | 0.300 |
 | L8 | 1338 | A2ffn | 28.2897 | 9.10 | 33.3 | 0.273 |
 | L8 | 1338 | A2attn | 27.0701 | 4.40 | 16.7 | 0.263 |
+| L8 | 1339 | A2 | 29.7832 | 14.38 | 50.0 | 0.288 |
+| L8 | 1339 | A2ffn | 28.2087 | 8.33 | 33.3 | 0.250 |
+| L8 | 1339 | A2attn | 26.9840 | 3.63 | 16.7 | 0.217 |
 | L16 | 1337 | A2 | 27.0107 | 12.65 | 50.0 | 0.253 |
 | L16 | 1338 | A2 | 27.1578 | 13.42 | 50.0 | 0.268 |
 | L16 | 1339 | A2 | 26.8802 | 12.27 | 50.0 | 0.245 |
 
 ## Verdict
 
-- mean tax: FFN-only **9.03%**, attn-only **4.13%** (difference -4.90 pp)
+- mean tax: FFN-only **8.80%**, attn-only **3.97%** (difference -4.83 pp)
 - **H-M1 (not supported)**: attention sharing costs more than FFN sharing by >2pp
-- **H-M2 (supported)**: taxes are additive — A2 13.97% vs ffn+attn 13.16%
-- best cost-per-%-storage-saved: **A2attn** at 0.247 (A2 baseline 0.278, ALBERT 0.420)
+- **H-M2 (supported)**: taxes are additive — A2 14.18% vs ffn+attn 12.76%
+- best cost-per-%-storage-saved: **A2attn** at 0.237 (A2 baseline 0.278, ALBERT 0.420)
 
-<!-- built 2026-08-21T10:52:33+00:00 from 22 run(s) -->
+<!-- built 2026-08-21T15:16:59+00:00 from 26 run(s) -->

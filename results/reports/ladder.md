@@ -7,8 +7,10 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 |---|---|---|---|---|
 | L4 | 1337 | 29.1429 | 33.4981 | **14.94** |
 | L4 | 1338 | 29.0664 | 33.5997 | **15.60** |
+| L4 | 1339 | 29.1827 | 33.7089 | **15.51** |
 | L8 | 1337 | 26.0610 | 29.6770 | **13.88** |
 | L8 | 1338 | 25.9303 | 29.8213 | **15.01** |
+| L8 | 1339 | 26.0384 | 29.7832 | **14.38** |
 | L16 | 1337 | 23.9769 | 27.0107 | **12.65** |
 | L16 | 1338 | 23.9450 | 27.1578 | **13.42** |
 | L16 | 1339 | 23.9421 | 26.8802 | **12.27** |
@@ -17,8 +19,8 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 
 | rung | n seeds | mean tax % | SE |
 |---|---|---|---|
-| L4 | 2 | 15.27 | 0.33 |
-| L8 | 2 | 14.44 | 0.57 |
+| L4 | 3 | 15.35 | 0.20 |
+| L8 | 3 | 14.42 | 0.33 |
 | L16 | 3 | 12.78 | 0.34 |
 
 ## H-S: does the tax decay with scale?
@@ -26,11 +28,11 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 Pre-registered decision rule (program spec P3): regress tax on log2(non-embedding params);
 **supported** iff the slope's 95% CI excludes zero on the negative side.
 
-- points: **7** pairs
-- slope: **-1.27 pp** per doubling of non-embedding params
-- 95% CI: [-1.96, -0.57]  (df=5)
+- points: **9** pairs
+- slope: **-1.28 pp** per doubling of non-embedding params
+- 95% CI: [-1.78, -0.79]  (df=7)
 - **verdict: SUPPORTED (tax decays with scale)**
 
-Extrapolated non-embedding size for a <2% tax: **19,144M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
+Extrapolated non-embedding size for a <2% tax: **18,020M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
 
-<!-- built 2026-08-21T10:52:33+00:00 from 22 run(s) -->
+<!-- built 2026-08-21T15:16:59+00:00 from 26 run(s) -->
