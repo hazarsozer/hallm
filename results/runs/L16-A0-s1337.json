@@ -1,0 +1,12 @@
+{
+  "arm": "A0",
+  "fwd_gflops": 86.4787,
+  "non_embedding_params_M": 50.3485,
+  "retroactive": true,
+  "run": "L16-A0-s1337",
+  "size_bf16_MB": 145.611,
+  "size_fp32_MB": 291.223,
+  "source_file": "iso-a0deep-results.json",
+  "test_ppl": 23.9769,
+  "total_params_M": 76.3423
+}

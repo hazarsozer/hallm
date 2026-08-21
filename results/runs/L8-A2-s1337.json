@@ -1,0 +1,12 @@
+{
+  "arm": "A2",
+  "fwd_gflops": 56.4139,
+  "non_embedding_params_M": 12.5916,
+  "retroactive": true,
+  "run": "L8-A2-s1337",
+  "size_bf16_MB": 73.596,
+  "size_fp32_MB": 147.191,
+  "source_file": "four-arm-results.json",
+  "test_ppl": 29.677,
+  "total_params_M": 38.5853
+}

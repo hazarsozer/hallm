@@ -11,7 +11,7 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 | L8 | 1338 | 25.9303 | 29.8213 | **15.01** |
 | L16 | 1337 | 23.9769 | 27.0107 | **12.65** |
 | L16 | 1338 | 23.9450 | 27.1578 | **13.42** |
-| L16 | 1339 | 23.9421 | *(pending)* | — |
+| L16 | 1339 | 23.9421 | 26.8802 | **12.27** |
 
 ## Per-rung summary
 
@@ -19,18 +19,18 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 |---|---|---|---|
 | L4 | 2 | 15.27 | 0.33 |
 | L8 | 2 | 14.44 | 0.57 |
-| L16 | 2 | 13.04 | 0.38 |
+| L16 | 3 | 12.78 | 0.34 |
 
 ## H-S: does the tax decay with scale?
 
 Pre-registered decision rule (program spec P3): regress tax on log2(non-embedding params);
 **supported** iff the slope's 95% CI excludes zero on the negative side.
 
-- points: **6** pairs
-- slope: **-1.12 pp** per doubling of non-embedding params
-- 95% CI: [-1.89, -0.34]  (df=4)
+- points: **7** pairs
+- slope: **-1.27 pp** per doubling of non-embedding params
+- 95% CI: [-1.96, -0.57]  (df=5)
 - **verdict: SUPPORTED (tax decays with scale)**
 
-Extrapolated non-embedding size for a <2% tax: **50,146M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
+Extrapolated non-embedding size for a <2% tax: **19,144M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
 
-<!-- built 2026-08-20T19:47:12+00:00 from 15 run(s) -->
+<!-- built 2026-08-21T08:57:23+00:00 from 21 run(s) -->

@@ -19,12 +19,14 @@ wiki/.obsidian/workspace-mobile.json
 .venv/
 
 # Training / harness artifacts (sharedlm)
-runs/
+# NOTE: anchored with a leading slash. An unanchored `runs/` matches ANY directory named
+# `runs` at any depth — which silently ignored every per-run result under results/runs/.
+/runs/
 data/*.bin
 *.pt
 .pytest_cache/
 .loop/uv_sync.log
-runs_iso*/
+/runs_iso*/
 runs*.log
 .train_pid
 

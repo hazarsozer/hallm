@@ -1,0 +1,18 @@
+{
+  "arm": "A2-attn",
+  "final_train_loss": 3.1849,
+  "final_val_loss": 3.2902,
+  "fwd_gflops": 56.4139,
+  "kv_bytes_ctx2048_b8": 268435456,
+  "kv_bytes_ctx512_b1": 8388608,
+  "non_embedding_params_M": 20.9802,
+  "nonemb_weight_bytes_bf16": 41960448,
+  "peak_vram_bytes": 5654076416,
+  "run": "L8-A2attn-s1338",
+  "size_bf16_MB": 89.596,
+  "size_fp32_MB": 179.191,
+  "test_ppl": 27.0701,
+  "total_params_M": 46.974,
+  "weight_bytes_bf16": 93947904,
+  "weight_frac_of_total_ctx512_b1": 0.918
+}

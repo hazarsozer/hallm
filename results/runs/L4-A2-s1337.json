@@ -1,0 +1,10 @@
+{
+  "arm": "A2",
+  "fwd_gflops": 41.3815,
+  "non_embedding_params_M": 6.2961,
+  "run": "L4-A2-s1337",
+  "size_bf16_MB": 61.588,
+  "size_fp32_MB": 123.176,
+  "test_ppl": 33.4981,
+  "total_params_M": 32.2898
+}

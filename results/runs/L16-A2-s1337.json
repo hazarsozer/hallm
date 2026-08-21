@@ -1,0 +1,12 @@
+{
+  "arm": "A2",
+  "fwd_gflops": 86.4787,
+  "non_embedding_params_M": 25.1827,
+  "retroactive": true,
+  "run": "L16-A2-s1337",
+  "size_bf16_MB": 97.611,
+  "size_fp32_MB": 195.223,
+  "source_file": "iso-a2-results.json",
+  "test_ppl": 27.0107,
+  "total_params_M": 51.1764
+}

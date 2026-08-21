@@ -1,0 +1,10 @@
+{
+  "arm": "A0",
+  "fwd_gflops": 86.4787,
+  "non_embedding_params_M": 50.3485,
+  "run": "L16-A0-s1339",
+  "size_bf16_MB": 145.611,
+  "size_fp32_MB": 291.223,
+  "test_ppl": 23.9421,
+  "total_params_M": 76.3423
+}
