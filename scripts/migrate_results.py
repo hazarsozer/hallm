@@ -29,12 +29,15 @@ LEGACY = {
 }
 
 
-def migrate(results_dir: str | Path, dry_run: bool = False) -> dict[str, str]:
+def migrate(results_dir: str | Path, dry_run: bool = False,
+            ledger_name: str = "ladder.jsonl") -> dict[str, str]:
     results_dir = Path(results_dir)
     runs_dir = results_dir / "runs"
     written: dict[str, str] = {}
 
-    ledger = results_dir / "ladder.jsonl"
+    # `ledger_name` lets a collaborator convert their own ledger (e.g. ladder-alper.jsonl)
+    # without renaming it first.
+    ledger = results_dir / ledger_name
     if ledger.exists():
         for line in ledger.read_text(encoding="utf-8").splitlines():
             line = line.strip()
@@ -45,7 +48,7 @@ def migrate(results_dir: str | Path, dry_run: bool = False) -> dict[str, str]:
                 continue
             if not dry_run:
                 write_run_result(runs_dir, row)
-            written[row["run"]] = "ladder.jsonl"
+            written[row["run"]] = ledger_name
 
     for fname, arm_map in LEGACY.items():
         p = results_dir / fname
@@ -68,8 +71,10 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--results", default="results")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--ledger", default="ladder.jsonl",
+                    help="ledger filename inside --results to convert (e.g. ladder-alper.jsonl)")
     args = ap.parse_args()
-    written = migrate(args.results, args.dry_run)
+    written = migrate(args.results, args.dry_run, ledger_name=args.ledger)
     verb = "would write" if args.dry_run else "wrote"
     print(f"{verb} {len(written)} per-run result file(s) to {args.results}/runs/")
     for run_id, src in sorted(written.items()):
