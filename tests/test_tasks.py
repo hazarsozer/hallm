@@ -55,7 +55,7 @@ def test_empty_body_is_safe():
 
 def test_relevance_filter_covers_everything_a_collaborator_runs_from():
     for p in ("configs/runs/L4-A0-s1337.yaml", "scripts/run_queue.py",
-              "src/hallm/train.py", "CLAUDE.md", "README.md",
+              "src/hallm/train.py", "COLLABORATOR.md", "README.md",
               "docs/superpowers/specs/2026-08-20-research-program-design.md"):
         assert p.startswith(AFFECTS_COLLABORATOR), p
 
@@ -64,3 +64,9 @@ def test_relevance_filter_excludes_our_own_noise():
     for p in ("results/runs/L8-A0-s1338.json", "results/reports/ladder.md",
               "wiki/roadmap/06-scaling-campaign.md", "docs/superpowers/plans/x.md"):
         assert not p.startswith(AFFECTS_COLLABORATOR), p
+
+
+def test_personal_claude_md_is_not_watched():
+    """CLAUDE.md is gitignored and personal, so it can never appear in a commit —
+    watching it would be dead code implying a sync that cannot happen."""
+    assert not "CLAUDE.md".startswith(AFFECTS_COLLABORATOR)

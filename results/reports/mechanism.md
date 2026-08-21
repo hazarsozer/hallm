@@ -26,4 +26,4 @@ OV circuits (weak path, risk R1). Pre-registered: tax(attn-only) > tax(ffn-only)
 - **H-M2 (supported)**: taxes are additive — A2 13.97% vs ffn+attn 13.16%
 - best cost-per-%-storage-saved: **A2attn** at 0.247 (A2 baseline 0.278, ALBERT 0.420)
 
-<!-- built 2026-08-21T08:57:23+00:00 from 21 run(s) -->
+<!-- built 2026-08-21T10:52:33+00:00 from 22 run(s) -->

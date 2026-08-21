@@ -32,3 +32,10 @@ runs*.log
 
 # Claude worktrees (session isolation)
 .claude/worktrees/
+
+# CLAUDE.md is PERSONAL to each machine and must never be shared.
+# Hazar's is a RenOS pointer with machine-local paths; Alper's points at
+# COLLABORATOR.md. The shared executor rules live in COLLABORATOR.md, which IS
+# tracked — so they are versioned and survive a re-clone, while the file that
+# loads them stays local to whoever is working.
+/CLAUDE.md

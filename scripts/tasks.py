@@ -38,7 +38,7 @@ AFFECTS_COLLABORATOR = (
     "configs/",       # run configs and queues they launch from
     "scripts/",       # the commands they type
     "src/hallm/",     # harness behaviour, manifest and result formats
-    "CLAUDE.md",      # their standing rules
+    "COLLABORATOR.md",  # their standing rules (CLAUDE.md is gitignored/personal)
     "README.md",      # setup and layout
     "docs/superpowers/specs/",  # protocol and program decisions
 )
@@ -98,7 +98,61 @@ def new_commits() -> list[dict]:
     return commits
 
 
+RULES_FILE = "COLLABORATOR.md"
+POINTER = """# HaLLM — local pointer (personal, gitignored)
+
+You are a collaborator on this repository, not its owner.
+
+Read `COLLABORATOR.md` in the repo root at the start of every session and follow it
+exactly. It is the maintained, versioned source of the rules; this file only points at it.
+
+When asked whether there are tasks or updates, run:
+
+    uv run python scripts/tasks.py check
+
+That command is read-only and safe at any time, including mid-training.
+"""
+
+
+def rules_banner() -> None:
+    """Print the constraints with every report.
+
+    The rules must reach the agent even from a bare clone whose personal CLAUDE.md was
+    never written or was lost to a re-clone — so they travel with the thing that dispenses
+    work rather than depending on a file `git clone` can silently drop.
+    """
+    print("-" * 62)
+    print(f"Rules: {RULES_FILE} (read it before acting). In short:")
+    print("  never push to main · never edit configs/ · never start a run unasked")
+    print("  HuggingFace: add only, never delete/rename/overwrite")
+    print("  unclear? stop and report in plain English rather than improvising")
+    print("-" * 62 + "\n")
+
+
+def ensure_pointer() -> None:
+    """Offer to restore the personal CLAUDE.md pointer if it is missing."""
+    root = Path(__file__).resolve().parents[1]
+    local = root / "CLAUDE.md"
+    if local.exists() or not (root / RULES_FILE).exists():
+        return
+    print(f"NOTE: no local CLAUDE.md here, so your agent will not auto-load {RULES_FILE}.")
+    print(f"      Write the one-line pointer with:  python scripts/tasks.py bootstrap\n")
+
+
+def cmd_bootstrap(args) -> int:
+    root = Path(__file__).resolve().parents[1]
+    local = root / "CLAUDE.md"
+    if local.exists():
+        print(f"{local} already exists — leaving it alone.")
+        return 0
+    local.write_text(POINTER, encoding="utf-8")
+    print(f"wrote {local} (gitignored, personal to this machine)")
+    return 0
+
+
 def cmd_check(args) -> int:
+    rules_banner()
+    ensure_pointer()
     login = me()
     tasks = my_tasks(login)
     commits = new_commits()
@@ -226,13 +280,15 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("check", help="anything assigned or changed for me?")
+    sub.add_parser("bootstrap", help="write the personal CLAUDE.md pointer (gitignored)")
     p_show = sub.add_parser("show", help="full brief for one task")
     p_show.add_argument("task_id")
     p_rep = sub.add_parser("report", help="validate deliverables, then post to the issue")
     p_rep.add_argument("task_id")
     p_rep.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
-    return {"check": cmd_check, "show": cmd_show, "report": cmd_report}[args.cmd](args)
+    return {"check": cmd_check, "show": cmd_show, "report": cmd_report,
+            "bootstrap": cmd_bootstrap}[args.cmd](args)
 
 
 if __name__ == "__main__":
