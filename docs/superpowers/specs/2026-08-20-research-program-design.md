@@ -329,3 +329,71 @@ Slack absorbs re-runs from P0 item 7 (residual init) and any P5 probe that overt
 - **R8 (new):** Alper's seed-1339 L4/L8 pairs are external (issue #1, no reply since 2026-08-20
   09:52 UTC). P3's decision rule uses a regression over available runs and does **not** require them;
   they tighten the CI rather than gate the conclusion.
+
+---
+
+## Amendment 2026-08-31 — the viability gate's denominator, and P4's promotion
+
+*Written after P1 (L8, three seeds) and P3 concluded, and pre-registered BEFORE the iso-storage
+comparator run or any P4 frontier run has produced a result. The comparator `L7-A0-s1337` was
+launched hours before this amendment; its PPL is not yet known.*
+
+### A1. What P1 measured, and why the gate as stated mis-scores it
+
+P1's outcome (now at three seeds): **H-M1 inverted** — attention-only sharing is the *cheap* path
+(mean tax +3.96%, −16.7% storage) — and H-M2's additivity held. By the pre-registered criterion
+(min cost per % saved, ceiling 8%), the recommended configuration is **A2attn**.
+
+The `<2%` viability gate has so far divided by the **same-shape parent** (A0 at identical d, L).
+That denominator answers "what does sharing cost this architecture?" — the right measurand for the
+tax and for every P1/P3 conclusion, all of which stand unchanged. But the *viability* question the
+gate exists for is different: "given a storage budget, does the shared model beat the unshared model
+you could have stored instead?" The same-shape parent stores 25.17M non-emb; A2attn stores 20.98M.
+Comparing them charges A2attn for capacity it does not store.
+
+### A2. The reframed gate (pre-registered decision rule)
+
+**The viability gate's denominator is an unshared model at (approximately) the same stored
+non-embedding parameter count — the iso-storage comparator.**
+
+- Comparator: **`L7-A0-s1337`** (d=512, L=7, 22.03M non-emb; config committed at `b26763d`,
+  run in progress). Width is held at the campaign's d=512 so embeddings are byte-identical and no
+  aspect-ratio confound enters. No integer shape lands on 20.98M exactly; L=7 overshoots by +5%,
+  making the comparator *stronger* than true iso-storage — a pass against it is conservative.
+- Rule: the gate is **PASSED for A2attn iff mean A2attn@L8 test PPL (3 seeds: 27.0411) ≤ 1.02 ×
+  L7-A0-s1337 test PPL**. Single-seed comparator noted as a limitation; further comparator seeds
+  tighten it but do not gate the verdict (same stance as R8).
+- Interim arithmetic (to be superseded by the measurement): interpolating the unshared ladder
+  (A0 means, log-PPL vs log2 non-emb params) to 20.98M predicts PPL ≈ 26.80, i.e. an iso-storage
+  delta of **+0.91%**. An earlier two-seed version of this arithmetic gave +2.16%; the spread
+  between +0.9% and +2.2% is exactly why the gate is decided by a run, not an interpolation.
+- The same-shape figure (+3.96%) continues to be reported as the **sharing tax**; the gate and the
+  tax are different measurands with different denominators, and both appear in the thesis.
+
+Full A2 remains far outside the gate under either denominator (its iso-storage comparator is a
+~12.6M unshared model — the measured L4 rung at PPL ≈ 29.13 — which A2 at 29.68 does not beat).
+The reframing changes A2attn's verdict from "7× over the bar" to "decided by the comparator run";
+it does not rescue full A2.
+
+### A3. P4 promoted to the primary criterion
+
+With the gate reframed to iso-storage, P4 — the iso-*total-inference-memory* frontier — is the
+gate's natural completion (weights + embeddings + KV, at declared context/batch points) and becomes
+**the program's primary viability criterion**; the A2attn-vs-comparator gate above is its
+single-point preview. Consequences, fixed now:
+
+- The frontier is searched with **A2attn** (the P1-recommended mechanism), per P4's own dependency
+  clause. Full-A2 frontier points are limited to the already-measured A2(d512,L16) anchor; no new
+  full-A2 frontier runs.
+- P4's decision rule (win at both ctx512×1 and ctx2048×8, scored on total inference memory) is
+  unchanged.
+- H-R's phrasing "some shared configuration" now reads "some A2attn configuration".
+
+### A4. Execution record (context for this amendment, not part of any decision rule)
+
+- `L7-A0-s1337` launched 2026-08-31 on the 4070 Super box at commit `b26763d`.
+- P5's LR probe (±2×, L8, A0+A2, seed 1337) assigned as **T-002 / issue #5**; its run IDs use a
+  4-part form (`L8-A0-s1337-lr2x`) which `parse_run_id` deliberately rejects, keeping probe runs
+  out of the ladder and mechanism tables.
+- P5's budget-extension and sharing-warmup probes are deferred pending small tooling features
+  (resume-guard allowance for `max_steps`; YAML plumbing for `sharing_warmup_steps`).
