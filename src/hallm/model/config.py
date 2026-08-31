@@ -107,5 +107,9 @@ SHAPES: dict[str, ModelConfig] = {
     # depth-scaled. s30h = L4 rung (~12.6M non-emb unshared); s30x4 = L32 stretch rung (~100.7M).
     "s30h": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=4, n_head=8),
     "s30x4": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=32, n_head=8),
+    # iso-storage partner for A2attn@s30 (stores 20.98M non-emb): nearest unshared shape at the
+    # campaign width d=512 is L=7 → 22.03M (+5% over target, i.e. a slightly stronger baseline).
+    # Width kept at 512 so embeddings are identical and no aspect-ratio confound enters.
+    "s30l7": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=7, n_head=8),
     "s124": ModelConfig(vocab_size=50257, block_size=1024, n_embd=768, n_layer=12, n_head=12),
 }

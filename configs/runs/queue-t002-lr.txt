@@ -1,0 +1,4 @@
+configs/runs/L8-A0-s1337-lr2x.yaml
+configs/runs/L8-A2-s1337-lr2x.yaml
+configs/runs/L8-A0-s1337-lrhalf.yaml
+configs/runs/L8-A2-s1337-lrhalf.yaml
