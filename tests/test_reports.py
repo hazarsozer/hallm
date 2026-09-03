@@ -44,3 +44,17 @@ def test_regress_reports_inconclusive_when_ci_spans_zero():
 
 def test_regress_needs_at_least_three_points():
     assert hs_verdict(regress([1.0, 2.0], [3.0, 4.0])) == "insufficient data"
+
+
+def test_memory_table_excludes_probe_run_ids():
+    """Probe runs (4-part ids) must stay out of every generated table, not just ladder/mechanism."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("build_reports", Path("scripts/build_reports.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mem = {"weight_bytes_bf16": 1e8, "kv_bytes_ctx512_b1": 8e6, "kv_bytes_ctx2048_b8": 2.6e8,
+           "weight_frac_of_total_ctx512_b1": 0.9}
+    text = mod.build_memory([{"run": "L8-A0-s1337", **mem}, {"run": "L8-A0-s1337-lr2x", **mem}])
+    assert "| L8-A0-s1337 |" in text
+    assert "lr2x" not in text

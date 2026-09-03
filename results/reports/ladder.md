@@ -8,6 +8,7 @@ Tax = (PPL_shared - PPL_unshared) / PPL_unshared, measured **within** a seed pai
 | L4 | 1337 | 29.1429 | 33.4981 | **14.94** |
 | L4 | 1338 | 29.0664 | 33.5997 | **15.60** |
 | L4 | 1339 | 29.1827 | 33.7089 | **15.51** |
+| L7 | 1337 | 26.4060 | *(pending)* | — |
 | L8 | 1337 | 26.0610 | 29.6770 | **13.88** |
 | L8 | 1338 | 25.9303 | 29.8213 | **15.01** |
 | L8 | 1339 | 26.0384 | 29.7832 | **14.38** |
@@ -35,4 +36,4 @@ Pre-registered decision rule (program spec P3): regress tax on log2(non-embeddin
 
 Extrapolated non-embedding size for a <2% tax: **18,020M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
 
-<!-- built 2026-08-21T15:16:59+00:00 from 26 run(s) -->
+<!-- built 2026-09-03T12:01:25+00:00 from 35 run(s) -->
