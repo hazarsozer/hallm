@@ -111,5 +111,11 @@ SHAPES: dict[str, ModelConfig] = {
     # campaign width d=512 is L=7 → 22.03M (+5% over target, i.e. a slightly stronger baseline).
     # Width kept at 512 so embeddings are identical and no aspect-ratio confound enters.
     "s30l7": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=7, n_head=8),
+    # P4 unshared frontier points (spec amendment 2026-08-31 §A3): A0@L8's 25.17M non-emb storage
+    # re-invested along width. Spec names d724/L4 and d362/L16; rounded to head-divisible widths
+    # with head dim near the campaign's 64. Both ~24.9M non-emb (−1%), i.e. slightly weaker than
+    # the reference — a loss against them is not explained by extra capacity.
+    "p4w720l4": ModelConfig(vocab_size=50257, block_size=512, n_embd=720, n_layer=4, n_head=10),
+    "p4w360l16": ModelConfig(vocab_size=50257, block_size=512, n_embd=360, n_layer=16, n_head=6),
     "s124": ModelConfig(vocab_size=50257, block_size=1024, n_embd=768, n_layer=12, n_head=12),
 }

@@ -100,3 +100,11 @@ def test_p1_storage_savings_are_the_expected_thirds(tmp_path):
          (("base", base), ("ffn", ffn), ("attn", attn))}
     assert abs((1 - n["ffn"] / n["base"]) - 1 / 3) < 0.01
     assert abs((1 - n["attn"] / n["base"]) - 1 / 6) < 0.01
+
+
+def test_p4_unshared_frontier_shapes_land_within_2pct_of_a0_l8_storage():
+    """P4 frontier (spec amendment A3): unshared points at ~25.2M non-emb, re-invested along width."""
+    ref = GPT(arm_config(SHAPES["s30"], "A0")).num_parameters(non_embedding=True)
+    for shape in ("p4w720l4", "p4w360l16"):
+        n = GPT(arm_config(SHAPES[shape], "A0")).num_parameters(non_embedding=True)
+        assert abs(n - ref) / ref < 0.02, (shape, n, ref)
