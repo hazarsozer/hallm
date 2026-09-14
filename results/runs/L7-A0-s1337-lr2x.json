@@ -11,6 +11,8 @@
   "run": "L7-A0-s1337-lr2x",
   "size_bf16_MB": 91.594,
   "size_fp32_MB": 183.188,
+  "test_ppl": 27.0046,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 48.0215,
   "val_ppl": 26.6818,
   "weight_bytes_bf16": 96043008,

@@ -10,6 +10,8 @@
   "size_bf16_MB": 97.611,
   "size_fp32_MB": 195.223,
   "source_file": "iso-a2-results.json",
+  "test_ppl": 27.504,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 51.1764,
   "val_ppl": 27.0107,
   "weight_bytes_bf16": 102352896,

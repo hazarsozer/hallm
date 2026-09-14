@@ -11,6 +11,8 @@
   "run": "L4-A0-s1337-d720",
   "size_bf16_MB": 117.194,
   "size_fp32_MB": 234.388,
+  "test_ppl": 26.6547,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 61.4434,
   "val_ppl": 26.2455,
   "weight_bytes_bf16": 122886720,

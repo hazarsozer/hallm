@@ -8,6 +8,8 @@
   "run": "L4-A2-s1337",
   "size_bf16_MB": 61.588,
   "size_fp32_MB": 123.176,
+  "test_ppl": 33.8636,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 32.2898,
   "val_ppl": 33.4981,
   "weight_bytes_bf16": 64579584,

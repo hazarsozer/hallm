@@ -11,6 +11,8 @@
   "run": "L8-A0-s1337-lrhalf",
   "size_bf16_MB": 97.596,
   "size_fp32_MB": 195.191,
+  "test_ppl": 27.0361,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 51.1683,
   "val_ppl": 26.6629,
   "weight_bytes_bf16": 102336512,

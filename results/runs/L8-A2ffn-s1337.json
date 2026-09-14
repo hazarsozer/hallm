@@ -11,6 +11,8 @@
   "run": "L8-A2ffn-s1337",
   "size_bf16_MB": 81.596,
   "size_fp32_MB": 163.191,
+  "test_ppl": 28.7175,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 42.7796,
   "val_ppl": 28.3967,
   "weight_bytes_bf16": 85559296,

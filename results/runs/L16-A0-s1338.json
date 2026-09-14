@@ -8,6 +8,8 @@
   "run": "L16-A0-s1338",
   "size_bf16_MB": 145.611,
   "size_fp32_MB": 291.223,
+  "test_ppl": 24.3264,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 76.3423,
   "val_ppl": 23.945,
   "weight_bytes_bf16": 152684544,

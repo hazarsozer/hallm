@@ -10,6 +10,8 @@
   "size_bf16_MB": 52.582,
   "size_fp32_MB": 105.164,
   "source_file": "four-arm-results.json",
+  "test_ppl": 43.5064,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
   "total_params_M": 27.5681,
   "val_ppl": 43.3001,
   "weight_bytes_bf16": 55136256,
