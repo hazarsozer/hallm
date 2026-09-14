@@ -110,11 +110,19 @@ they can buy, not only in how well they spend it.
 ### 4.2 Probes (inference-only, existing and new checkpoints)
 
 Per-position loss, loss by token-frequency decile, LAMBADA, BLiMP (all in `capeval.py` /
-`scripts/capability_eval.py`), plus two new in-context probes: induction (repeated random-token
-sequences, accuracy on the second occurrence) and associative recall (key–value pairs in context,
-query a key). Run on every pilot arm and its comparators. The 4 checkpoints without weights
-(`L7-A0-s1337`, `L8-A0-s1339`, `L8-A2-s1339`, `L8-A2attn-s1339`) are skipped; those comparisons run
-at the seeds that exist.
+`scripts/capability_eval.py`), plus a copy-gain probe: repeat a real WikiText validation passage
+(128 tokens, 256 passages) and measure the NLL drop from the first copy to the second (`copy_gain`,
+nats) — the in-context copying signal an induction head would produce. Run on every pilot arm and
+its comparators. The 4 checkpoints without weights (`L7-A0-s1337`, `L8-A0-s1339`, `L8-A2-s1339`,
+`L8-A2attn-s1339`) are skipped; those comparisons run at the seeds that exist.
+
+> **Amendment 2026-09-14 (before any pilot probe result):** the random-token induction and
+> random-BPE associative-recall probes were replaced after a sanity check on four seed-1337
+> checkpoints showed both at the floor (recall 2–8%, below a random in-context copy; induction
+> 2–5%). Associative lookup stays in Track 2 (variable-binding chains). The check did show
+> the four models' copy gains (L8-A0 1.50, L8-A1u4 1.36, L8-A2 1.31, L4-A0 1.28 nats); the
+> metric choice does not favour an arm — second-copy loss gives the same ordering, and both
+> follow the perplexity ordering.
 
 ### 4.3 Bridge run (FineWeb-Edu)
 
