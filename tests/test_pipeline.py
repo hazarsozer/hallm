@@ -6,6 +6,7 @@ import glob
 import os
 import tempfile
 
+import pytest
 import torch
 
 from hallm.data import get_batch, iter_eval_batches, make_synthetic_data
@@ -56,11 +57,25 @@ def test_train_runs_and_perplexity_finite() -> None:
 def test_comparison_table_renders() -> None:
     data = make_synthetic_data(SMOKE.vocab_size, 2000, seed=3)
     rows = [
-        evaluate_arm(GPT(arm_config(SMOKE, a)), arm_config(SMOKE, a), data, batch_size=8, device="cpu")
+        evaluate_arm(GPT(arm_config(SMOKE, a)), arm_config(SMOKE, a), data, batch_size=8, device="cpu",
+                    key="test_ppl")
         for a in ["A0", "A1", "A2", "A3"]
     ]
-    table = comparison_table(rows)
+    table = comparison_table(rows, ppl_key="test_ppl")
     assert "test_ppl" in table and "A3" in table
+
+
+def test_evaluate_arm_requires_an_explicit_key() -> None:
+    """F6: `key` must be a required keyword arg — no default that could silently mislabel a split."""
+    data = make_synthetic_data(SMOKE.vocab_size, 2000, seed=3)
+    with pytest.raises(TypeError):
+        evaluate_arm(GPT(arm_config(SMOKE, "A0")), arm_config(SMOKE, "A0"), data, batch_size=8, device="cpu")
+
+
+def test_comparison_table_requires_an_explicit_ppl_key() -> None:
+    """F6: `ppl_key` must be a required keyword arg for the same reason."""
+    with pytest.raises(TypeError):
+        comparison_table([])
 
 
 def test_checkpoint_round_trip() -> None:

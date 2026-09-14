@@ -27,6 +27,17 @@ from hallm.train import load_resume_checkpoint, save_checkpoint, set_seed, train
 PAUSED = object()
 
 
+def detect_dataset(data_dir: str | Path) -> str:
+    """Corpus identity of a data directory (F4): a dir whose SOURCE.json names repo
+    HuggingFaceFW/fineweb-edu is "fineweb-edu"; a dir without SOURCE.json is "wikitext-103"."""
+    source = Path(data_dir) / "SOURCE.json"
+    if source.exists():
+        info = json.loads(source.read_text(encoding="utf-8"))
+        if info.get("repo") == "HuggingFaceFW/fineweb-edu":
+            return "fineweb-edu"
+    return "wikitext-103"
+
+
 def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: int | None = None):
     """Train one queue entry. Returns the eval row, None if already done, or PAUSED if training
     stopped early at `stop_step` without finishing (an absolute step index, per train())."""
@@ -38,6 +49,15 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
     if final.exists():
         print(f"[skip] {name}: final checkpoint exists")
         return None
+    # Corpus identity (F4): refuse before any training if the data dir doesn't match what the
+    # config declares — must land before the FineWeb bridge queue runs.
+    detected = detect_dataset(data_dir)
+    if detected != train_cfg.dataset:
+        raise ValueError(
+            f"{name}: data dir {data_dir} looks like '{detected}' (from SOURCE.json) but the "
+            f"config declares dataset='{train_cfg.dataset}' — refusing to start training on a "
+            f"mismatched corpus"
+        )
     out.mkdir(parents=True, exist_ok=True)
 
     manifest_path = out / "manifest.json"
@@ -94,6 +114,7 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
                                                     8, device), 4)
         row["test_split_sha256"] = file_sha256(test_bin)
     row["run"] = name
+    row["dataset"] = train_cfg.dataset
     # Measured memory + the train/val endpoints, so the generalisation gap is recoverable later
     # without re-reading a log that may not survive the session (spec P0 items 1, 3, 4).
     row.update(memory_row(model, model_cfg))

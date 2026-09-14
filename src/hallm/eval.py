@@ -41,18 +41,20 @@ def evaluate_perplexity(
 
 def evaluate_arm(
     model: GPT, cfg: ModelConfig, data, block_size: int | None = None, batch_size: int = 8,
-    device=None, key: str = "test_ppl",
+    device=None, *, key: str,
 ) -> dict:
     """One arm → a full results row (perplexity under ``key`` + params/size/FLOPs). Callers name the
-    split they scored: the campaign runner writes val.bin as ``val_ppl`` and test.bin as ``test_ppl``."""
+    split they scored: the campaign runner writes val.bin as ``val_ppl`` and test.bin as ``test_ppl``.
+    ``key`` is required (F6) so no caller can silently mislabel a split via a stale default."""
     ppl = evaluate_perplexity(model, data, block_size or cfg.block_size, batch_size, device)
     row = metrics_row(model, cfg)
     row[key] = round(ppl, 4)
     return row
 
 
-def comparison_table(rows: list[dict], baseline_arm: str = "A0", ppl_key: str = "test_ppl") -> str:
-    """Render the four-way comparison as a markdown table with Δ% vs baseline and the viability gate."""
+def comparison_table(rows: list[dict], baseline_arm: str = "A0", *, ppl_key: str) -> str:
+    """Render the four-way comparison as a markdown table with Δ% vs baseline and the viability gate.
+    ``ppl_key`` is required (F6) so no caller can silently mislabel a split via a stale default."""
     base = next((r for r in rows if r["arm"] == baseline_arm), None)
     base_ppl = base[ppl_key] if base else None
     header = (

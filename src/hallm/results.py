@@ -49,3 +49,14 @@ def read_run_results(results_dir: str | Path) -> list[dict]:
         except json.JSONDecodeError:
             continue
     return sorted(rows, key=lambda r: r.get("run", ""))
+
+
+def update_run_result(results_dir: str | Path, run_id: str, fields: dict) -> Path:
+    """Merge ``fields`` into an existing run's result — for metrics computed after training (e.g. a
+    later test-split evaluation). Refuses to create a row: only the runner creates results."""
+    p = result_path(results_dir, run_id)
+    if not p.exists():
+        raise FileNotFoundError(f"no result for {run_id} in {results_dir}")
+    row = json.loads(p.read_text(encoding="utf-8"))
+    row.update(fields)
+    return write_run_result(results_dir, row)

@@ -75,3 +75,19 @@ def test_drain_writes_per_run_files_not_an_appended_ledger(tmp_path):
     assert written == ["smoke-A0-s7.json", "smoke-A2-s7.json"]
     payload = json.loads((results_dir / "smoke-A0-s7.json").read_text())
     assert payload["run"] == "smoke-A0-s7" and "val_ppl" in payload
+
+
+def test_update_run_result_merges_and_keeps_other_fields(tmp_path):
+    from hallm.results import update_run_result
+
+    write_run_result(tmp_path, {"run": "L8-A0-s1337", "val_ppl": 26.06, "arm": "A0"})
+    update_run_result(tmp_path, "L8-A0-s1337", {"test_ppl": 26.5})
+    row = read_run_results(tmp_path)[0]
+    assert row == {"run": "L8-A0-s1337", "val_ppl": 26.06, "arm": "A0", "test_ppl": 26.5}
+
+
+def test_update_run_result_refuses_to_create_a_row(tmp_path):
+    from hallm.results import update_run_result
+
+    with pytest.raises(FileNotFoundError):
+        update_run_result(tmp_path, "L8-A0-s1337", {"test_ppl": 1.0})

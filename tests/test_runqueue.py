@@ -35,6 +35,37 @@ def _setup(tmp_path, with_test=True):
     return data_dir, cfgs, queue
 
 
+def test_run_one_records_dataset_field(tmp_path):
+    """F4: the result row must record which corpus the data dir actually holds."""
+    data_dir, cfgs, _ = _setup(tmp_path)  # no SOURCE.json -> wikitext-103
+    row = run_one(cfgs[0], data_dir, device="cpu")
+    assert row["dataset"] == "wikitext-103"
+
+
+def test_run_one_refuses_a_fineweb_config_against_wikitext_data(tmp_path):
+    """F4: a data dir with no SOURCE.json is wikitext-103; a config declaring fineweb-edu against
+    it must be refused before any training starts."""
+    data_dir, cfgs, _ = _setup(tmp_path)
+    spec = yaml.safe_load(cfgs[0].read_text())
+    spec["train"]["dataset"] = "fineweb-edu"
+    cfgs[0].write_text(yaml.safe_dump(spec))
+    with pytest.raises(ValueError, match="fineweb-edu"):
+        run_one(cfgs[0], data_dir, device="cpu")
+    out = tmp_path / "runs" / "smoke-A0-s7"
+    assert not out.exists()  # refused before any side effect
+
+
+def test_run_one_refuses_a_wikitext_config_against_fineweb_data(tmp_path):
+    """F4: a data dir whose SOURCE.json names repo HuggingFaceFW/fineweb-edu is fineweb-edu; the
+    default wikitext-103 config against it must be refused before any training starts."""
+    data_dir, cfgs, _ = _setup(tmp_path)
+    (data_dir / "SOURCE.json").write_text(json.dumps({"repo": "HuggingFaceFW/fineweb-edu"}))
+    with pytest.raises(ValueError, match="wikitext-103"):
+        run_one(cfgs[0], data_dir, device="cpu")  # cfgs[0] defaults to dataset=wikitext-103
+    out = tmp_path / "runs" / "smoke-A0-s7"
+    assert not out.exists()
+
+
 def test_run_one_trains_freezes_and_skips(tmp_path):
     data_dir, cfgs, _ = _setup(tmp_path)
     row = run_one(cfgs[0], data_dir, device="cpu")
