@@ -1,6 +1,6 @@
 # Research Program Design — Buying Compute With Shared Weights (Sep 2026 → January)
 
-> **Status: approved in brainstorm 2026-09-14 (Hazar + Claude); spec under Hazar's review.**
+> **Status: approved 2026-09-14 (Hazar + Claude brainstorm; Hazar reviewed the flagged items).**
 > Supersedes the *question* of `2026-08-20-research-program-design.md` (and its 2026-08-31
 > amendment). That document's standing methodology (§2) carries forward unchanged, and every result
 > it produced (P1, P3, T-001–T-005) stands as input.
@@ -204,9 +204,10 @@ re-investment (d576/L8 from T-003) · looping × W+Wᵀ combined at iso-storage.
 2. **Reports:** a report for 4-part run IDs (probes, P4 frontier); `mechanism.md` reported per rung
    instead of pooled (the pooled table names A2ffn, contradicting the pre-registered L8 reading).
 3. **Code:** `n_unique_blocks` + `A1u<k>` run IDs + tests (§2); `SHAPES` entries for A2attn at L9/L10.
-4. **Advisor:** progress email to Töreyin, CC Alper and Ahmet Nuri Yılmaz — results so far, the
-   reframed question, the pilot, a request for SP4CING/UHEM access, and his OK before 124M/cloud
-   spend. Claude drafts; Hazar sends.
+4. **Advisor:** Hazar briefs Töreyin in person at term start — results so far, the reframed
+   question, the pilot, a request for SP4CING/UHEM access, and his OK before 124M/cloud spend. A
+   written update (CC Alper and Ahmet Nuri Yılmaz, as he asked) follows the meeting or replaces it
+   if no meeting happens by the gate.
 5. **Alper:** this spec pushed to `main` (shows up in `tasks.py check` as an update); T-006 filed.
 6. **Old spec:** status line on `2026-08-20-research-program-design.md` pointing here.
 
