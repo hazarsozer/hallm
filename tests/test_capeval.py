@@ -3,16 +3,26 @@ Network-free: fake byte-level encoder, synthetic data, no tiktoken."""
 from __future__ import annotations
 
 import json
+import math
 
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 
 from hallm.capeval import (
     blimp_accuracy,
+    frequency_bucket_loss,
+    frequency_buckets,
     greedy_continuation,
+    induction_accuracy,
+    induction_batch,
     lambada_accuracy,
     load_blimp_file,
     load_lambada,
+    position_loss,
+    recall_accuracy,
+    recall_batch,
     sequence_nll,
     sliced_perplexity,
 )
@@ -125,3 +135,94 @@ def test_training_mode_restored():
     assert not model.training
     greedy_continuation(model, ctx, 1)
     assert not model.training, "greedy_continuation should preserve eval mode"
+
+
+from hallm.eval import evaluate_perplexity
+
+
+class _CopyOracle(nn.Module):
+    """Predicts x[p - half + 1] at position p: a perfect induction head on [r, r] sequences."""
+
+    def __init__(self, half: int) -> None:
+        super().__init__()
+        self.cfg = CFG
+        self.half = half
+
+    def forward(self, x, targets=None):
+        idx = (torch.arange(x.shape[1]) - self.half + 1).clamp(min=0)
+        return F.one_hot(x[:, idx], CFG.vocab_size).float(), None
+
+
+class _RecallOracle(nn.Module):
+    """At the last position, finds the query key earlier in the row and predicts the next token."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.cfg = CFG
+
+    def forward(self, x, targets=None):
+        preds = []
+        for row in x:
+            pos = int((row[:-1] == row[-1]).nonzero()[0, 0])
+            preds.append(row[pos + 1])
+        return F.one_hot(torch.stack(preds), CFG.vocab_size).float()[:, None, :], None
+
+
+def test_position_buckets_average_to_the_overall_loss():
+    model, data = _model(), make_synthetic_data(CFG.vocab_size, 2048, seed=3)
+    buckets = position_loss(model, data, CFG.block_size, n_buckets=4)
+    ppl = evaluate_perplexity(model, data, CFG.block_size)
+    assert len(buckets) == 4 and abs(sum(buckets) / 4 - math.log(ppl)) < 1e-4
+
+
+def test_frequency_buckets_split_by_training_mass():
+    train = np.array([0] * 50 + [1] * 30 + [2] * 20, dtype=np.uint16)
+    assert frequency_buckets(train, vocab_size=4, n_buckets=2).tolist() == [0, 1, 1, 1]
+
+
+def test_frequency_buckets_does_not_copy_the_training_array_to_int64(monkeypatch):
+    """F10: np.bincount must be called on the array as stored (uint16 accepted), not on a copy
+    forced to int64 — the training array can be large, and the cast was a needless full copy."""
+    seen_dtypes = []
+    real_bincount = np.bincount
+
+    def spy(arr, **kwargs):
+        seen_dtypes.append(np.asarray(arr).dtype)
+        return real_bincount(arr, **kwargs)
+
+    monkeypatch.setattr(np, "bincount", spy)
+    train = np.array([0] * 50 + [1] * 30 + [2] * 20, dtype=np.uint16)
+    result = frequency_buckets(train, vocab_size=4, n_buckets=2)
+    assert seen_dtypes and seen_dtypes[0] == np.uint16
+    assert result.tolist() == [0, 1, 1, 1]  # behaviour unchanged
+
+
+def test_single_frequency_bucket_is_the_overall_loss():
+    model, data = _model(), make_synthetic_data(CFG.vocab_size, 2048, seed=3)
+    zeros = np.zeros(CFG.vocab_size, dtype=np.int64)
+    (loss,) = frequency_bucket_loss(model, data, zeros, 1, CFG.block_size)
+    assert abs(loss - math.log(evaluate_perplexity(model, data, CFG.block_size))) < 1e-4
+
+
+def test_induction_batch_second_copy_is_determined_by_the_first():
+    x, y = induction_batch(n_seqs=4, half=8, lo=10, hi=200, seed=0)
+    assert x.shape == (4, 15) and torch.equal(y[:, 8:], x[:, 1:8])
+
+
+def test_induction_accuracy_is_one_for_a_perfect_induction_head():
+    assert induction_accuracy(_CopyOracle(half=8), n_seqs=16, half_len=8, lo=10, hi=200) == 1.0
+
+
+def test_recall_batch_keys_are_distinct_and_the_query_is_one_of_them():
+    x, target = recall_batch(n_seqs=4, n_pairs=6, key_range=(10, 100), val_range=(100, 200), seed=0)
+    assert x.shape == (4, 13)
+    for row, t in zip(x, target):
+        keys = row[0:12:2]
+        assert len(set(keys.tolist())) == 6 and int(row[-1]) in keys.tolist()
+        pos = int((row[:-1] == row[-1]).nonzero()[0, 0])
+        assert int(row[pos + 1]) == int(t)
+
+
+def test_recall_accuracy_is_one_for_a_perfect_lookup():
+    oracle = _RecallOracle()
+    assert recall_accuracy(oracle, n_seqs=16, n_pairs=8, key_range=(10, 100), val_range=(100, 200)) == 1.0
