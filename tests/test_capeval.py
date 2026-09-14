@@ -6,23 +6,22 @@ import json
 import math
 
 import numpy as np
+import pytest
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 from hallm.capeval import (
     blimp_accuracy,
+    copy_gain,
     frequency_bucket_loss,
     frequency_buckets,
     greedy_continuation,
-    induction_accuracy,
-    induction_batch,
     lambada_accuracy,
     load_blimp_file,
     load_lambada,
     position_loss,
-    recall_accuracy,
-    recall_batch,
+    repeat_batch,
     sequence_nll,
     sliced_perplexity,
 )
@@ -141,7 +140,9 @@ from hallm.eval import evaluate_perplexity
 
 
 class _CopyOracle(nn.Module):
-    """Predicts x[p - half + 1] at position p: a perfect induction head on [r, r] sequences."""
+    """Predicts x[p - half + 1] at position p: a perfect induction head on [r, r] sequences. Logits
+    are scaled so the predicted class dominates the softmax, giving near-zero cross-entropy where
+    the prediction is right (not just the right argmax)."""
 
     def __init__(self, half: int) -> None:
         super().__init__()
@@ -150,22 +151,7 @@ class _CopyOracle(nn.Module):
 
     def forward(self, x, targets=None):
         idx = (torch.arange(x.shape[1]) - self.half + 1).clamp(min=0)
-        return F.one_hot(x[:, idx], CFG.vocab_size).float(), None
-
-
-class _RecallOracle(nn.Module):
-    """At the last position, finds the query key earlier in the row and predicts the next token."""
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.cfg = CFG
-
-    def forward(self, x, targets=None):
-        preds = []
-        for row in x:
-            pos = int((row[:-1] == row[-1]).nonzero()[0, 0])
-            preds.append(row[pos + 1])
-        return F.one_hot(torch.stack(preds), CFG.vocab_size).float()[:, None, :], None
+        return F.one_hot(x[:, idx], CFG.vocab_size).float() * 30.0, None
 
 
 def test_position_buckets_average_to_the_overall_loss():
@@ -204,25 +190,26 @@ def test_single_frequency_bucket_is_the_overall_loss():
     assert abs(loss - math.log(evaluate_perplexity(model, data, CFG.block_size))) < 1e-4
 
 
-def test_induction_batch_second_copy_is_determined_by_the_first():
-    x, y = induction_batch(n_seqs=4, half=8, lo=10, hi=200, seed=0)
-    assert x.shape == (4, 15) and torch.equal(y[:, 8:], x[:, 1:8])
+def test_repeat_batch_halves_are_identical_and_deterministic():
+    data = np.arange(1000, dtype=np.uint16)
+    seq_a = repeat_batch(data, n_seqs=4, half=8, seed=0)
+    seq_b = repeat_batch(data, n_seqs=4, half=8, seed=0)
+    assert seq_a.shape == (4, 16)
+    assert seq_a.dtype == torch.int64
+    assert torch.equal(seq_a, seq_b)  # deterministic for a given seed
+    assert torch.equal(seq_a[:, :8], seq_a[:, 8:])  # second half is a copy of the first
 
 
-def test_induction_accuracy_is_one_for_a_perfect_induction_head():
-    assert induction_accuracy(_CopyOracle(half=8), n_seqs=16, half_len=8, lo=10, hi=200) == 1.0
+def test_copy_gain_perfect_copier_has_near_zero_second_loss_and_positive_gain():
+    data = np.arange(2000, dtype=np.uint16) % CFG.vocab_size
+    result = copy_gain(_CopyOracle(half=8), data, n_seqs=16, half_len=8, seed=0, batch_size=4)
+    assert result["copy_loss_second"] < 1e-3
+    assert result["copy_gain"] > 0
+    assert result["copy_gain"] == result["copy_loss_first"] - result["copy_loss_second"]
 
 
-def test_recall_batch_keys_are_distinct_and_the_query_is_one_of_them():
-    x, target = recall_batch(n_seqs=4, n_pairs=6, key_range=(10, 100), val_range=(100, 200), seed=0)
-    assert x.shape == (4, 13)
-    for row, t in zip(x, target):
-        keys = row[0:12:2]
-        assert len(set(keys.tolist())) == 6 and int(row[-1]) in keys.tolist()
-        pos = int((row[:-1] == row[-1]).nonzero()[0, 0])
-        assert int(row[pos + 1]) == int(t)
-
-
-def test_recall_accuracy_is_one_for_a_perfect_lookup():
-    oracle = _RecallOracle()
-    assert recall_accuracy(oracle, n_seqs=16, n_pairs=8, key_range=(10, 100), val_range=(100, 200)) == 1.0
+def test_copy_gain_raises_when_the_repeated_window_exceeds_block_size():
+    model = _model()  # CFG.block_size == 64
+    data = np.arange(2000, dtype=np.uint16) % CFG.vocab_size
+    with pytest.raises(ValueError):
+        copy_gain(model, data, n_seqs=2, half_len=40, seed=0)  # 2*40-1 = 79 > 64

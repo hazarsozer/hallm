@@ -86,6 +86,15 @@ def test_paired_signs_mean_a_is_better_when_negative():
     assert abs(paired(by_id, "L8-A1u4", "L8-A2", "acc", higher_is_better=True)[0][1] + 10.0) < 1e-9
 
 
+def test_paired_scale_controls_the_higher_is_better_unit():
+    by_id = {"L8-a-s1337": {"copy_gain": 1.50}, "L8-b-s1337": {"copy_gain": 1.30}}
+    # default scale (100) treats the metric as a [0,1] fraction -> percentage points
+    assert abs(paired(by_id, "L8-a", "L8-b", "copy_gain", higher_is_better=True)[0][1] + 20.0) < 1e-9
+    # scale=1.0 keeps the diff a plain nats difference
+    assert abs(paired(by_id, "L8-a", "L8-b", "copy_gain",
+                      higher_is_better=True, scale=1.0)[0][1] + 0.20) < 1e-9
+
+
 def test_hc_verdict_needs_every_seed():
     assert hc_verdict([]) == "pending"
     assert hc_verdict([-1.0, -2.0]) == "SUPPORTED"
@@ -194,9 +203,23 @@ def test_build_reports_fails_clearly_on_a_pre_migration_row():
 def test_capability_report_gives_hr_verdicts_per_metric():
     rows = []
     for s in (1337, 1338):
-        rows += [{"run": f"L16-A1u8-s{s}", "induction_acc": 0.9, "late_loss": 3.0},
-                 {"run": f"L8-A0-s{s}", "induction_acc": 0.6, "late_loss": 2.9}]
+        rows += [{"run": f"L16-A1u8-s{s}", "copy_gain": 1.36, "late_loss": 3.0},
+                 {"run": f"L8-A0-s{s}", "copy_gain": 1.28, "late_loss": 2.9}]
     lines = _build_reports().build_capability(rows).splitlines()
-    ind = next(l for l in lines if l.startswith("| L16-A1u8 | L8-A0 | iso-storage | induction_acc |"))
+    cg = next(l for l in lines if l.startswith("| L16-A1u8 | L8-A0 | iso-storage | copy_gain |"))
     late = next(l for l in lines if l.startswith("| L16-A1u8 | L8-A0 | iso-storage | late_loss |"))
-    assert ind.endswith("| SUPPORTED |") and late.endswith("| NOT SUPPORTED |")
+    assert cg.endswith("| SUPPORTED |") and late.endswith("| NOT SUPPORTED |")
+
+
+def test_capability_report_renders_copy_gain_verdicts_in_nats():
+    """F14 (probe amendment 2026-09-14): copy_gain is in nats, not [0, 1] — the higher_is_better
+    branch of `paired` must not turn its diff into centi-nats via the ×100 used for accuracies."""
+    rows = []
+    for s in (1337, 1338, 1339):
+        rows += [{"run": f"L16-A1u8-s{s}", "copy_gain": 1.50}, {"run": f"L8-A0-s{s}", "copy_gain": 1.30}]
+    text = _build_reports().build_capability(rows)
+    assert "nats for copy_gain" in text
+    line = next(l for l in text.splitlines()
+                if l.startswith("| L16-A1u8 | L8-A0 | iso-storage | copy_gain |"))
+    # plain nats difference (-0.20), not the accuracy-style ×100 (-20.00)
+    assert "| -0.20 |" in line

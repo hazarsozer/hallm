@@ -2,14 +2,14 @@
 # Probes (Track 1) — H-R
 
 Spec 2026-09-14 §4.2/§4.4: the iso-storage.md rules applied per probe metric. Δ < 0 means a is
-better (relative % for losses, percentage points for accuracies).
+better (relative % for losses, percentage points for accuracies, nats for copy_gain).
 
-| run | lambada_acc | blimp_macro | induction_acc | recall_acc | late_loss | rare_loss |
-|---|---|---|---|---|---|---|
+| run | lambada_acc | blimp_macro | copy_gain | late_loss | rare_loss |
+|---|---|---|---|---|---|
 
 ## Verdicts
 
 | a | b | kind | metric | n | mean Δ | verdict |
 |---|---|---|---|---|---|---|
 
-<!-- built 2026-09-14T16:47:13+00:00 from 40 run(s) -->
+<!-- built 2026-09-14T17:50:26+00:00 from 40 run(s) -->

@@ -96,11 +96,13 @@ def parse_probe_id(run_id: str) -> dict | None:
 
 
 def paired(by_id: dict[str, dict], a: str, b: str, metric: str,
-           higher_is_better: bool = False) -> list[tuple[int, float]]:
+           higher_is_better: bool = False, scale: float = 100.0) -> list[tuple[int, float]]:
     """(seed, Δ) for every seed where `<a>-s<seed>` and `<b>-s<seed>` both carry `metric`.
 
-    Δ < 0 always means a is better: relative % for lower-is-better metrics (PPL, loss), percentage
-    points with the sign flipped for higher-is-better ones (accuracies in [0, 1])."""
+    Δ < 0 always means a is better: relative % for lower-is-better metrics (PPL, loss). For
+    higher-is-better metrics, Δ = -(a - b) * scale; the default scale (100) turns a [0, 1] accuracy
+    difference into percentage points. A metric that isn't a [0, 1] fraction (e.g. copy_gain, in
+    nats) should pass scale=1.0 to keep Δ a plain difference in its own unit."""
     out = []
     for rid, ra in by_id.items():
         p = parse_run_id(rid)
@@ -110,7 +112,7 @@ def paired(by_id: dict[str, dict], a: str, b: str, metric: str,
         if not rb or metric not in ra or metric not in rb:
             continue
         va, vb = ra[metric], rb[metric]
-        out.append((p["seed"], -(va - vb) * 100.0 if higher_is_better else tax(va, vb)))
+        out.append((p["seed"], -(va - vb) * scale if higher_is_better else tax(va, vb)))
     return sorted(out)
 
 

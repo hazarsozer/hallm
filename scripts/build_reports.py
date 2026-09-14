@@ -298,16 +298,21 @@ def build_split_check(rows: list[dict]) -> str:
     return "\n".join(L) + "\n"
 
 
-# Track 1 probe metrics (spec 2026-09-14 §4.2) → higher_is_better
-PROBE_METRICS = {"lambada_acc": True, "blimp_macro": True, "induction_acc": True,
-                 "recall_acc": True, "late_loss": False, "rare_loss": False}
+# Track 1 probe metrics (spec 2026-09-14 §4.2, amended 2026-09-14) → higher_is_better
+PROBE_METRICS = {"lambada_acc": True, "blimp_macro": True, "copy_gain": True,
+                 "late_loss": False, "rare_loss": False}
+
+# Per-metric unit for paired()'s higher_is_better diff. Accuracies live in [0, 1], so the default
+# scale (100, see paired()) turns the diff into percentage points. copy_gain is already in nats —
+# scaling it by 100 would print centi-nats, so it keeps a plain difference (scale 1).
+PROBE_SCALE = {"copy_gain": 1.0}
 
 
 def build_capability(cap_rows: list[dict]) -> str:
     by_id = _by_id(cap_rows)
     L = [STAMP, "# Probes (Track 1) — H-R", "",
          "Spec 2026-09-14 §4.2/§4.4: the iso-storage.md rules applied per probe metric. Δ < 0 means a is",
-         "better (relative % for losses, percentage points for accuracies).", "",
+         "better (relative % for losses, percentage points for accuracies, nats for copy_gain).", "",
          "| run | " + " | ".join(PROBE_METRICS) + " |", "|---|" + "---|" * len(PROBE_METRICS)]
     for rid in sorted(by_id):
         L.append(f"| {rid} | " + " | ".join(_f(by_id[rid].get(m), 4) for m in PROBE_METRICS) + " |")
@@ -315,7 +320,8 @@ def build_capability(cap_rows: list[dict]) -> str:
           "|---|---|---|---|---|---|---|"]
     for a, b, kind in COMPARISONS:
         for m, hib in PROBE_METRICS.items():
-            diffs = [d for _, d in paired(by_id, a, b, m, higher_is_better=hib)]
+            diffs = [d for _, d in paired(by_id, a, b, m, higher_is_better=hib,
+                                          scale=PROBE_SCALE.get(m, 100.0))]
             if not diffs:
                 continue
             mean, _ = mean_se(diffs)

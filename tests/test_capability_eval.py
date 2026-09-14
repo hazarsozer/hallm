@@ -19,11 +19,11 @@ def _capability_eval():
 
 def test_save_row_merges_into_an_existing_run_instead_of_overwriting_it(tmp_path):
     mod = _capability_eval()
-    mod.save_row(tmp_path, {"run": "L8-A0-s1337", "induction_acc": 0.9, "recall_acc": 0.8})
+    mod.save_row(tmp_path, {"run": "L8-A0-s1337", "copy_gain": 1.28, "copy_loss_second": 2.44})
     mod.save_row(tmp_path, {"run": "L8-A0-s1337", "lambada_acc": 0.5})
 
     (row,) = read_run_results(tmp_path)
-    assert row["induction_acc"] == 0.9 and row["recall_acc"] == 0.8 and row["lambada_acc"] == 0.5
+    assert row["copy_gain"] == 1.28 and row["copy_loss_second"] == 2.44 and row["lambada_acc"] == 0.5
 
     on_disk = json.loads((tmp_path / "L8-A0-s1337.json").read_text())
     assert on_disk == row

@@ -26,14 +26,13 @@ import torch
 
 from hallm.capeval import (
     blimp_accuracy,
+    copy_gain,
     frequency_bucket_loss,
     frequency_buckets,
-    induction_accuracy,
     lambada_accuracy,
     load_blimp_file,
     load_lambada,
     position_loss,
-    recall_accuracy,
     sliced_perplexity,
 )
 from hallm.data import GPT2_VOCAB_SIZE, load_bin
@@ -61,7 +60,7 @@ def main() -> None:
     ap.add_argument("--n-slices", type=int, default=10)
     ap.add_argument("--limit", type=int, default=None, help="subsample each benchmark to N examples")
     ap.add_argument("--probes", action="store_true",
-                    help="position/frequency loss (needs --data with train.bin + val.bin), induction, recall")
+                    help="position/frequency loss and copy-gain probe (needs --data with train.bin + val.bin)")
     ap.add_argument("--device", default=None)
     ap.add_argument("--out", default="results/capability")
     args = ap.parse_args()
@@ -102,9 +101,8 @@ def main() -> None:
             row["sliced_ppl"] = [round(p, 3) for p in
                                  sliced_perplexity(model, val, cfg.block_size, args.n_slices, device=device)]
         if args.probes:
-            row["induction_acc"] = round(induction_accuracy(model, device=device), 4)
-            row["recall_acc"] = round(recall_accuracy(model, device=device), 4)
             if val is not None:
+                row.update({k: round(v, 4) for k, v in copy_gain(model, val, device=device).items()})
                 pl = position_loss(model, val, cfg.block_size, device=device)
                 row["position_loss"], row["late_loss"] = [round(v, 4) for v in pl], round(pl[-1], 4)
             if val is not None and buckets is not None:

@@ -118,7 +118,12 @@ def load_blimp_file(path: str | Path, encode) -> list[tuple[list[int], list[int]
     return pairs
 
 
-# --- Track 1 probes (spec 2026-09-14 §4.2) ---------------------------------------------------
+# --- Track 1 probes (spec 2026-09-14 §4.2, amended 2026-09-14) -------------------------------
+# Per-position loss, loss by token-frequency decile, plus copy_gain: repeat a real validation
+# passage and measure the NLL drop from its first copy to its second — the in-context copying
+# signal an induction head would produce. Replaces the random-token induction and random-BPE
+# associative-recall probes, both of which sat at the floor on a seed-1337 sanity check (see the
+# amendment note in the spec).
 
 @torch.no_grad()
 def token_losses(model: GPT, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
@@ -173,64 +178,49 @@ def frequency_bucket_loss(model: GPT, data: np.ndarray, buckets: np.ndarray, n_b
     return [float(s / c) if c else float("nan") for s, c in zip(sums, cnt)]
 
 
-def induction_batch(n_seqs: int, half: int, lo: int, hi: int, seed: int) -> tuple[torch.Tensor, torch.Tensor]:
-    """[r, r] sequences of random tokens in [lo, hi). Returns (x, y) with y the next-token targets;
-    positions half… of y are fully determined by the first copy."""
-    g = torch.Generator().manual_seed(seed)
-    r = torch.randint(lo, hi, (n_seqs, half), generator=g)
-    seq = torch.cat([r, r], dim=1)
-    return seq[:, :-1], seq[:, 1:]
+def repeat_batch(data: np.ndarray, n_seqs: int, half: int, seed: int) -> torch.Tensor:
+    """n_seqs windows of `half` consecutive tokens from `data`, each concatenated with itself:
+    shape (n_seqs, 2*half), int64. Start positions drawn uniformly over valid starts with
+    `np.random.default_rng(seed)`."""
+    rng = np.random.default_rng(seed)
+    starts = rng.integers(0, len(data) - half + 1, size=n_seqs)
+    windows = np.stack([np.asarray(data[s:s + half]) for s in starts])
+    return torch.from_numpy(np.concatenate([windows, windows], axis=1).astype(np.int64))
 
 
 @torch.no_grad()
-def induction_accuracy(model: GPT, n_seqs: int = 256, half_len: int | None = None, lo: int = 0,
-                       hi: int | None = None, seed: int = 0, batch_size: int = 8,
-                       device: str = "cpu") -> float:
-    """Greedy next-token accuracy over the second copy — what an induction head ('find the previous
-    occurrence, copy what followed') solves."""
-    half = half_len or model.cfg.block_size // 2
-    x, y = induction_batch(n_seqs, half, lo, hi or model.cfg.vocab_size, seed)
+def copy_gain(model: GPT, data: np.ndarray, n_seqs: int = 256, half_len: int = 128, seed: int = 0,
+             batch_size: int = 8, device: str = "cpu") -> dict:
+    """Repeat a real passage and measure the NLL drop from the first copy to the second — the
+    in-context copying signal an induction head would produce, on real text instead of the
+    random-token/random-BPE probes that sat at the floor (spec amendment 2026-09-14).
+
+    Returns {"copy_loss_first", "copy_loss_second", "copy_gain"} (nats); gain = first - second,
+    higher meaning more in-context copying. copy_loss_first is the mean NLL over the first copy's
+    targets (excluding its unpredictable first token); copy_loss_second is the mean NLL over the
+    second copy's targets that are fully determined by the first copy (excluding the boundary
+    token, predictable only from the whole first copy having just been seen)."""
+    half = half_len
+    if 2 * half - 1 > model.cfg.block_size:
+        raise ValueError(
+            f"2*half_len - 1 ({2 * half - 1}) exceeds model block_size ({model.cfg.block_size})"
+        )
+    seq = repeat_batch(data, n_seqs, half, seed)
     was_training = model.training
     model.eval()
-    correct = total = 0
+    first_sum = first_n = second_sum = second_n = 0.0
     for i in range(0, n_seqs, batch_size):
-        xb, yb = x[i:i + batch_size].to(device), y[i:i + batch_size].to(device)
-        logits, _ = model(xb, yb)
-        pred = logits.argmax(-1)
-        correct += int((pred[:, half:] == yb[:, half:]).sum())
-        total += yb[:, half:].numel()
+        s = seq[i:i + batch_size].to(device)
+        x, y = s[:, :-1], s[:, 1:]
+        nll = token_losses(model, x, y).double()
+        first, second = nll[:, :half - 1], nll[:, half:]
+        first_sum += float(first.sum().cpu())
+        first_n += first.numel()
+        second_sum += float(second.sum().cpu())
+        second_n += second.numel()
     if was_training:
         model.train()
-    return correct / total
-
-
-def recall_batch(n_seqs: int, n_pairs: int, key_range: tuple[int, int], val_range: tuple[int, int],
-                 seed: int) -> tuple[torch.Tensor, torch.Tensor]:
-    """Sequences k1 v1 … kn vn kq with distinct keys (key and value pools disjoint); target = the
-    value paired with the query key kq."""
-    g = torch.Generator().manual_seed(seed)
-    rows, targets = [], []
-    for _ in range(n_seqs):
-        keys = key_range[0] + torch.randperm(key_range[1] - key_range[0], generator=g)[:n_pairs]
-        vals = torch.randint(val_range[0], val_range[1], (n_pairs,), generator=g)
-        q = int(torch.randint(0, n_pairs, (1,), generator=g))
-        rows.append(torch.cat([torch.stack([keys, vals], 1).flatten(), keys[q:q + 1]]))
-        targets.append(vals[q])
-    return torch.stack(rows), torch.stack(targets)
-
-
-@torch.no_grad()
-def recall_accuracy(model: GPT, n_seqs: int = 256, n_pairs: int = 32,
-                    key_range: tuple[int, int] = (1000, 11000), val_range: tuple[int, int] = (11000, 21000),
-                    seed: int = 0, batch_size: int = 64, device: str = "cpu") -> float:
-    """Greedy accuracy of predicting the value for the query key (in-context associative recall)."""
-    x, target = recall_batch(n_seqs, n_pairs, key_range, val_range, seed)
-    was_training = model.training
-    model.eval()
-    correct = 0
-    for i in range(0, n_seqs, batch_size):
-        logits, _ = model(x[i:i + batch_size].to(device))  # inference path: last position only
-        correct += int((logits[:, -1].argmax(-1).cpu() == target[i:i + batch_size]).sum())
-    if was_training:
-        model.train()
-    return correct / n_seqs
+    first_loss = first_sum / first_n
+    second_loss = second_sum / second_n
+    return {"copy_loss_first": first_loss, "copy_loss_second": second_loss,
+            "copy_gain": first_loss - second_loss}
