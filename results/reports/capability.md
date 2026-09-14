@@ -12,4 +12,4 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | a | b | kind | metric | n | mean Δ | verdict |
 |---|---|---|---|---|---|---|
 
-<!-- built 2026-09-14T17:50:26+00:00 from 40 run(s) -->
+<!-- built 2026-09-14T17:58:06+00:00 from 41 run(s) -->

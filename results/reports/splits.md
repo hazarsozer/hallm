@@ -16,8 +16,8 @@ full val-seed headline visible.
 | L9-A2attn | L8-A0 | iso-storage | pending | 0 | no test data | no test data | — |
 | L10-A2attn | L8-A0 | iso-storage | pending | 0 | no test data | no test data | — |
 | L8-A1u4 | L4-A0 | iso-storage | SUPPORTED | 1 | SUPPORTED | SUPPORTED | yes |
-| L16-A1u8 | L8-A0 | iso-storage | pending | 0 | no test data | no test data | — |
+| L16-A1u8 | L8-A0 | iso-storage | SUPPORTED | 1 | SUPPORTED | SUPPORTED | yes |
 | L8-A1u4 | L8-A2 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
-| L16-A1u8 | L16-A2 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
+| L16-A1u8 | L16-A2 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
 
-<!-- built 2026-09-14T16:47:13+00:00 from 40 run(s) -->
+<!-- built 2026-09-14T17:58:06+00:00 from 41 run(s) -->
