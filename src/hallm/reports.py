@@ -85,6 +85,55 @@ def regress(xs: list[float], ys: list[float]) -> dict:
             "ci_lo": slope - crit, "ci_hi": slope + crit, "df": df}
 
 
+def parse_probe_id(run_id: str) -> dict | None:
+    """`L<depth>-A<arm>-s<seed>-<suffix>` → parts + suffix. Off-ladder runs (LR probes, P4 widths,
+    other corpora) use this 4-part form so they never enter a ladder table."""
+    parts = run_id.split("-")
+    if len(parts) != 4:
+        return None
+    base = parse_run_id("-".join(parts[:3]))
+    return {**base, "suffix": parts[3]} if base else None
+
+
+def paired(by_id: dict[str, dict], a: str, b: str, metric: str,
+           higher_is_better: bool = False) -> list[tuple[int, float]]:
+    """(seed, Δ) for every seed where `<a>-s<seed>` and `<b>-s<seed>` both carry `metric`.
+
+    Δ < 0 always means a is better: relative % for lower-is-better metrics (PPL, loss), percentage
+    points with the sign flipped for higher-is-better ones (accuracies in [0, 1])."""
+    out = []
+    for rid, ra in by_id.items():
+        p = parse_run_id(rid)
+        if not p or not rid.startswith(a + "-s"):
+            continue
+        rb = by_id.get(f"{b}-s{p['seed']}")
+        if not rb or metric not in ra or metric not in rb:
+            continue
+        va, vb = ra[metric], rb[metric]
+        out.append((p["seed"], -(va - vb) * 100.0 if higher_is_better else tax(va, vb)))
+    return sorted(out)
+
+
+def hc_verdict(diffs: list[float]) -> str:
+    """H-C (spec 2026-09-14 §4.4): extra compute pays at fixed storage iff a wins in every paired
+    seed (which also makes the mean lower)."""
+    if not diffs:
+        return "pending"
+    return "SUPPORTED" if all(d < 0 for d in diffs) else "NOT SUPPORTED"
+
+
+def hl_verdict(diffs: list[float], a: str, b: str) -> str:
+    """H-L (spec 2026-09-14 §4.4): at matched storage and compute, a winner only if all 3 seeds
+    agree in sign and |mean| > 2 SE."""
+    if len(diffs) < 3:
+        return f"pending ({len(diffs)}/3 seeds)"
+    m, se = mean_se(diffs)
+    same_sign = all(d < 0 for d in diffs) or all(d > 0 for d in diffs)
+    if same_sign and abs(m) > 2 * se:
+        return f"{a} better" if m < 0 else f"{b} better"
+    return "no difference detected"
+
+
 def hs_verdict(reg: dict) -> str:
     """Pre-registered (program spec P3): supported iff the slope's 95% CI excludes zero, negative."""
     lo, hi = reg.get("ci_lo"), reg.get("ci_hi")
