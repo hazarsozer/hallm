@@ -1,12 +1,17 @@
 {
   "arm": "A3",
   "fwd_gflops": 56.4139,
+  "kv_bytes_ctx2048_b8": 268435456,
+  "kv_bytes_ctx512_b1": 8388608,
   "non_embedding_params_M": 1.5744,
+  "nonemb_weight_bytes_bf16": 3148800,
   "retroactive": true,
   "run": "L8-A3-s1337",
   "size_bf16_MB": 52.582,
   "size_fp32_MB": 105.164,
   "source_file": "four-arm-results.json",
-  "test_ppl": 43.3001,
-  "total_params_M": 27.5681
+  "total_params_M": 27.5681,
+  "val_ppl": 43.3001,
+  "weight_bytes_bf16": 55136256,
+  "weight_frac_of_total_ctx512_b1": 0.8679
 }

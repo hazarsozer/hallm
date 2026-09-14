@@ -1,12 +1,17 @@
 {
   "arm": "A0",
   "fwd_gflops": 86.4787,
+  "kv_bytes_ctx2048_b8": 536870912,
+  "kv_bytes_ctx512_b1": 16777216,
   "non_embedding_params_M": 50.3485,
+  "nonemb_weight_bytes_bf16": 100697088,
   "retroactive": true,
   "run": "L16-A0-s1337",
   "size_bf16_MB": 145.611,
   "size_fp32_MB": 291.223,
   "source_file": "iso-a0deep-results.json",
-  "test_ppl": 23.9769,
-  "total_params_M": 76.3423
+  "total_params_M": 76.3423,
+  "val_ppl": 23.9769,
+  "weight_bytes_bf16": 152684544,
+  "weight_frac_of_total_ctx512_b1": 0.901
 }

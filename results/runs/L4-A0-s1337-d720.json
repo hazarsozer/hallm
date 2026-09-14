@@ -11,8 +11,8 @@
   "run": "L4-A0-s1337-d720",
   "size_bf16_MB": 117.194,
   "size_fp32_MB": 234.388,
-  "test_ppl": 26.2455,
   "total_params_M": 61.4434,
+  "val_ppl": 26.2455,
   "weight_bytes_bf16": 122886720,
   "weight_frac_of_total_ctx512_b1": 0.9542
 }

@@ -11,8 +11,8 @@
   "run": "L8-A0-s1337-lrhalf",
   "size_bf16_MB": 97.596,
   "size_fp32_MB": 195.191,
-  "test_ppl": 26.6629,
   "total_params_M": 51.1683,
+  "val_ppl": 26.6629,
   "weight_bytes_bf16": 102336512,
   "weight_frac_of_total_ctx512_b1": 0.9242
 }

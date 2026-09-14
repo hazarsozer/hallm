@@ -11,8 +11,8 @@
   "run": "L4-A2ffn-s1338",
   "size_bf16_MB": 65.588,
   "size_fp32_MB": 131.176,
-  "test_ppl": 31.4772,
   "total_params_M": 34.3869,
+  "val_ppl": 31.4772,
   "weight_bytes_bf16": 68773888,
   "weight_frac_of_total_ctx512_b1": 0.9425
 }

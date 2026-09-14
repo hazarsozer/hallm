@@ -1,10 +1,15 @@
 {
   "arm": "A2",
   "fwd_gflops": 41.3815,
+  "kv_bytes_ctx2048_b8": 134217728,
+  "kv_bytes_ctx512_b1": 4194304,
   "non_embedding_params_M": 6.2961,
+  "nonemb_weight_bytes_bf16": 12592128,
   "run": "L4-A2-s1338",
   "size_bf16_MB": 61.588,
   "size_fp32_MB": 123.176,
-  "test_ppl": 33.5997,
-  "total_params_M": 32.2898
+  "total_params_M": 32.2898,
+  "val_ppl": 33.5997,
+  "weight_bytes_bf16": 64579584,
+  "weight_frac_of_total_ctx512_b1": 0.939
 }

@@ -11,8 +11,8 @@
   "run": "L8-A2attn-s1339",
   "size_bf16_MB": 89.596,
   "size_fp32_MB": 179.191,
-  "test_ppl": 26.984,
   "total_params_M": 46.974,
+  "val_ppl": 26.984,
   "weight_bytes_bf16": 93947904,
   "weight_frac_of_total_ctx512_b1": 0.918
 }
