@@ -13,11 +13,11 @@ full val-seed headline visible.
 | L8-A2 | L4-A0 | iso-storage | NOT SUPPORTED | 2 | NOT SUPPORTED | NOT SUPPORTED | yes |
 | L16-A2 | L8-A0 | iso-storage | NOT SUPPORTED | 2 | NOT SUPPORTED | NOT SUPPORTED | yes |
 | L8-A2attn | L7-A0 | iso-storage | NOT SUPPORTED | 0 | no test data | no test data | — |
-| L9-A2attn | L8-A0 | iso-storage | pending | 0 | no test data | no test data | — |
+| L9-A2attn | L8-A0 | iso-storage | NOT SUPPORTED | 1 | NOT SUPPORTED | NOT SUPPORTED | yes |
 | L10-A2attn | L8-A0 | iso-storage | pending | 0 | no test data | no test data | — |
 | L8-A1u4 | L4-A0 | iso-storage | SUPPORTED | 1 | SUPPORTED | SUPPORTED | yes |
 | L16-A1u8 | L8-A0 | iso-storage | SUPPORTED | 1 | SUPPORTED | SUPPORTED | yes |
 | L8-A1u4 | L8-A2 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
 | L16-A1u8 | L16-A2 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
 
-<!-- built 2026-09-14T17:58:06+00:00 from 41 run(s) -->
+<!-- built 2026-09-14T21:22:26+00:00 from 42 run(s) -->

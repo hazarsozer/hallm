@@ -39,5 +39,6 @@ why re-investing shared weights into depth pays the saving back in cache.
 | L8-A2ffn-s1338 | 85.6 | 8.4 | 268.4 | 91.1% |
 | L8-A2ffn-s1339 | 85.6 | 8.4 | 268.4 | 91.1% |
 | L8-A3-s1337 | 55.1 | 8.4 | 268.4 | 86.8% |
+| L9-A2attn-s1337 | 99.2 | 9.4 | 302.0 | 91.3% |
 
-<!-- built 2026-09-14T17:58:06+00:00 from 41 run(s) -->
+<!-- built 2026-09-14T21:22:26+00:00 from 42 run(s) -->

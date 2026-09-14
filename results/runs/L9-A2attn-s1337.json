@@ -1,0 +1,21 @@
+{
+  "arm": "A2-attn",
+  "dataset": "wikitext-103",
+  "final_train_loss": 3.2514,
+  "final_val_loss": 3.2875,
+  "fwd_gflops": 60.172,
+  "kv_bytes_ctx2048_b8": 301989888,
+  "kv_bytes_ctx512_b1": 9437184,
+  "non_embedding_params_M": 23.6027,
+  "nonemb_weight_bytes_bf16": 47205376,
+  "peak_vram_bytes": 5828452352,
+  "run": "L9-A2attn-s1337",
+  "size_bf16_MB": 94.598,
+  "size_fp32_MB": 189.195,
+  "test_ppl": 26.9465,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
+  "total_params_M": 49.5964,
+  "val_ppl": 26.5318,
+  "weight_bytes_bf16": 99192832,
+  "weight_frac_of_total_ctx512_b1": 0.9131
+}
