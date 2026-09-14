@@ -14,6 +14,7 @@ Mapping (ROADMAP.md §3, roadmap/03-architecture.md):
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 
 
@@ -39,7 +40,8 @@ class ModelConfig:
     tie_embeddings: bool = True    # LM head weight-tied to token embedding (keeps embed floor equal)
 
     # --- sharing knobs (the four arms live here) ---
-    share_cross_layer: bool = False   # A1/A3 — reuse one block across all L layers (ALBERT, depth)
+    share_cross_layer: bool = False   # A1/A3 — reuse blocks across layers (ALBERT, depth)
+    n_unique_blocks: int | None = None  # looped A1u<k>: k blocks cycled to depth L (None ⇒ 1 or L)
     share_intra_ffn: bool = False     # A2/A3 — FFN W2 = W1ᵀ (HaLViT, width)
     share_intra_attn: bool = False    # A2/A3 — V = K-path transpose, O = Q-path transpose (HaLViT)
     sharing_warmup_steps: int = 0     # R3 — enforce intra-layer ties only after N steps (0 = always)
@@ -49,6 +51,12 @@ class ModelConfig:
             raise ValueError(f"n_embd ({self.n_embd}) must be divisible by n_head ({self.n_head})")
         if self.ffn_mult < 1:
             raise ValueError(f"ffn_mult ({self.ffn_mult}) must be >= 1")
+        if self.n_unique_blocks is not None:
+            if not self.share_cross_layer:
+                raise ValueError("n_unique_blocks requires share_cross_layer=True")
+            k = self.n_unique_blocks
+            if not 1 <= k <= self.n_layer or self.n_layer % k:
+                raise ValueError(f"n_unique_blocks ({k}) must divide n_layer ({self.n_layer})")
 
     @property
     def head_dim(self) -> int:
@@ -61,6 +69,9 @@ class ModelConfig:
     @property
     def arm(self) -> str:
         """Canonical arm tag derived from the sharing flags (A0/A1/A2/A3 or an ablation label)."""
+        if self.n_unique_blocks not in (None, 1):
+            intra = self.share_intra_ffn or self.share_intra_attn
+            return "custom" if intra else f"A1u{self.n_unique_blocks}"
         for tag, flags in ARMS.items():
             if (
                 flags["share_cross_layer"] == self.share_cross_layer
@@ -84,14 +95,21 @@ ARMS: dict[str, dict[str, bool]] = {
 }
 
 
+_LOOPED = re.compile(r"A1u(\d+)")
+
+
 def arm_config(base: ModelConfig, arm: str) -> ModelConfig:
     """Return a copy of ``base`` with the sharing flags set for the named ``arm``.
 
-    The shape (vocab/block/embd/layer/head/ffn) is preserved exactly so all arms are matched.
+    ``A1u<k>`` is the looped arm (spec 2026-09-14 §2): A1's cross-layer flag with k distinct blocks
+    cycled to depth L. The shape (vocab/block/embd/layer/head/ffn) is preserved exactly.
     """
+    m = _LOOPED.fullmatch(arm)
+    if m:
+        return replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)))
     if arm not in ARMS:
-        raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)}")
-    return replace(base, **ARMS[arm])
+        raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)} or A1u<k>")
+    return replace(base, **ARMS[arm], n_unique_blocks=None)
 
 
 # --- candidate shapes (roadmap/03-architecture.md §1); pick the size in Term 2 after a pilot ---

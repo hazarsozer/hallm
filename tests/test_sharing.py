@@ -10,8 +10,10 @@ from __future__ import annotations
 import dataclasses
 
 import pytest
+import torch
 
 from hallm.model import GPT, SHAPES, arm_config
+from hallm.model.config import ModelConfig
 
 SMOKE = SHAPES["smoke"]
 D, L = SMOKE.n_embd, SMOKE.n_layer
@@ -60,3 +62,57 @@ def test_halvit_ffn_stores_single_matrix() -> None:
 def test_halvit_attn_stores_two_matrices() -> None:
     attn = GPT(arm_config(SMOKE, "A2")).blocks[0].attn
     assert len([p for p in attn.parameters() if p.ndim == 2]) == 2  # W_q, W_kv (V/O are transposes)
+
+
+def _deep(L: int):
+    return dataclasses.replace(SMOKE, n_layer=L)
+
+
+@pytest.mark.parametrize("L", [4, 8])
+def test_looped_arm_stores_k_blocks_independent_of_depth(L: int) -> None:
+    """A1u<k> stores k blocks (12d²·k) whatever the unrolled depth."""
+    assert block_matrix_params(GPT(arm_config(_deep(L), "A1u2"))) == 12 * D * D * 2
+
+
+def test_looped_arm_tag_and_block_count() -> None:
+    cfg = arm_config(_deep(4), "A1u2")
+    assert cfg.arm == "A1u2" and cfg.share_cross_layer and cfg.n_unique_blocks == 2
+    assert len(GPT(cfg).blocks) == 2
+    assert arm_config(_deep(4), "A1u1").arm == "A1"
+
+
+def test_looped_with_k_equal_depth_matches_unshared_storage() -> None:
+    assert block_matrix_params(GPT(arm_config(_deep(4), "A1u4"))) == \
+        block_matrix_params(GPT(arm_config(_deep(4), "A0")))
+
+
+def test_looped_cycles_blocks_in_order() -> None:
+    """Layer i must use block i mod k (Saunshi et al.'s k-layer block looped L/k times)."""
+    model = GPT(arm_config(_deep(4), "A1u2"))
+    order: list[int] = []
+    for j, block in enumerate(model.blocks):
+        block.register_forward_hook(lambda m, i, o, j=j: order.append(j))
+    model(torch.zeros(1, 8, dtype=torch.long))
+    assert order == [0, 1, 0, 1]
+
+
+@pytest.mark.parametrize("k", [0, 3, 5])
+def test_looped_rejects_k_that_does_not_divide_depth(k: int) -> None:
+    with pytest.raises(ValueError):
+        arm_config(_deep(4), f"A1u{k}")
+
+
+def test_n_unique_blocks_requires_the_cross_layer_flag() -> None:
+    with pytest.raises(ValueError):
+        dataclasses.replace(SMOKE, n_unique_blocks=2)
+
+
+def test_non_looped_arms_reset_n_unique_blocks() -> None:
+    looped = arm_config(_deep(4), "A1u2")
+    assert arm_config(looped, "A0").n_unique_blocks is None
+
+
+def test_checkpoint_config_without_the_new_field_still_loads() -> None:
+    d = dataclasses.asdict(SMOKE)
+    d.pop("n_unique_blocks")
+    assert ModelConfig(**d).n_unique_blocks is None

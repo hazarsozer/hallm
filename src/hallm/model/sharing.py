@@ -127,6 +127,10 @@ def build_blocks(cfg: ModelConfig, block_cls: type[nn.Module]) -> nn.ModuleList:
     If ``cfg.share_cross_layer`` is set, return a ModuleList with ONE block (reused for all L layers
     by the GPT forward, which indexes ``blocks[i % len(blocks)]``). Otherwise return L distinct blocks.
     One shared block ⇒ block parameters are independent of depth L (the A1/A3 invariant).
+    ``cfg.n_unique_blocks = k`` gives the looped arm: k blocks, cycled.
     """
-    n_unique = 1 if cfg.share_cross_layer else cfg.n_layer
+    if cfg.n_unique_blocks is not None:
+        n_unique = cfg.n_unique_blocks
+    else:
+        n_unique = 1 if cfg.share_cross_layer else cfg.n_layer
     return nn.ModuleList([block_cls(cfg) for _ in range(n_unique)])
