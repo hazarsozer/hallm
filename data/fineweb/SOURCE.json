@@ -1,0 +1,23 @@
+{
+  "repo": "HuggingFaceFW/fineweb-edu",
+  "shards_read": [
+    "sample/10BT/000_00000.parquet",
+    "sample/10BT/001_00000.parquet",
+    "sample/10BT/002_00000.parquet",
+    "sample/10BT/003_00000.parquet",
+    "sample/10BT/013_00000.parquet"
+  ],
+  "heldout_shard": "sample/10BT/013_00000.parquet",
+  "tokens": {
+    "train.bin": 2600000000,
+    "val.bin": 5000000,
+    "test.bin": 5000000
+  },
+  "sha256": {
+    "train.bin": "54a243d2accba4429a1fea88456e3a6c11bad60ad6349594ea55d7de0b2a5250",
+    "val.bin": "184528217e368e44ab4ca6f441388f1c83b8d5c97953b76bdad76b77cda4705c",
+    "test.bin": "ed992264dc5a47370beaf076a0293e49dca4ee49538ae97b04f710f4729719ca"
+  },
+  "tokenizer": "gpt2",
+  "separator": "EOT 50256 after every document"
+}

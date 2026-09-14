@@ -125,13 +125,39 @@ def generate_pilot(out_dir: str | Path) -> list[str]:
     return queue
 
 
+# --- FineWeb-Edu bridge (spec 2026-09-14 §4.3) ---------------------------------------------
+# Experiment 2's iso-storage pair re-trained on FineWeb-Edu with the WikiText recipe verbatim, so
+# the WikiText numbers connect to the 124M rung's corpus. The `-fw` segment keeps these IDs out of
+# the WikiText ladder tables (README run-ID grammar). Drain with `--data data/fineweb`.
+BRIDGE = [("L8", "s30", "A0"), ("L16", "s30x2", "A2")]
+
+
+def generate_bridge(out_dir: str | Path) -> list[str]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[str] = []
+    for rung, shape, arm in BRIDGE:
+        name = f"{rung}-{arm}-s1337-fw"
+        spec = {"shape": shape, "arm": arm,
+                "train": {**TRAIN, "dataset": "fineweb-edu", "seed": 1337, "out_dir": f"runs/ladder/{name}"}}
+        (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+        queue.append(str(out / f"{name}.yaml"))
+    (out / "queue-bridge.txt").write_text("\n".join(queue) + "\n", encoding="utf-8")
+    return queue
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="configs/runs")
     ap.add_argument("--p1", action="store_true",
                     help="generate the P1 mechanism-decomposition configs + queue-p1.txt instead")
     ap.add_argument("--pilot", action="store_true", help="generate the fixed-storage pilot configs + queue-pilot.txt")
+    ap.add_argument("--bridge", action="store_true", help="generate the FineWeb-Edu bridge configs + queue-bridge.txt")
     args = ap.parse_args()
+    if args.bridge:
+        queue = generate_bridge(args.out)
+        print(f"wrote {len(queue)} bridge configs to {args.out}/, queue-bridge.txt lists them in drain order")
+        return
     if args.pilot:
         queue = generate_pilot(args.out)
         print(f"wrote {len(queue)} pilot configs to {args.out}/, queue-pilot.txt lists them in drain order")

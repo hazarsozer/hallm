@@ -155,3 +155,18 @@ def test_a2attn_depth_points_bracket_a0_l8_storage():
     n9 = GPT(arm_config(SHAPES["s30l9"], "A2-attn")).num_parameters(non_embedding=True)
     n10 = GPT(arm_config(SHAPES["s30l10"], "A2-attn")).num_parameters(non_embedding=True)
     assert n9 < ref < n10
+
+
+# --- FineWeb-Edu bridge (spec 2026-09-14 §4.3) -----------------------------------------------
+
+def test_generate_bridge_is_the_iso_storage_pair_on_fineweb(tmp_path):
+    from scripts.gen_ladder_configs import generate_bridge
+
+    queue = generate_bridge(tmp_path)
+    assert [p.split("/")[-1] for p in queue] == ["L8-A0-s1337-fw.yaml", "L16-A2-s1337-fw.yaml"]
+    _, baseline = load_experiment("configs/runs/L8-A0-s1338.yaml")
+    for name, (depth, arm) in (("L8-A0-s1337-fw", (8, "A0")), ("L16-A2-s1337-fw", (16, "A2"))):
+        mc, tc = load_experiment(tmp_path / f"{name}.yaml")
+        assert (mc.n_layer, mc.arm, tc.dataset, tc.seed) == (depth, arm, "fineweb-edu", 1337)
+        for field in ("lr", "min_lr", "warmup_steps", "max_steps", "batch_size", "grad_accum", "dtype"):
+            assert getattr(tc, field) == getattr(baseline, field), (name, field)

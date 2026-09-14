@@ -23,6 +23,7 @@ wiki/.obsidian/workspace-mobile.json
 # `runs` at any depth — which silently ignored every per-run result under results/runs/.
 /runs/
 data/*.bin
+data/fineweb/*.bin
 *.pt
 .pytest_cache/
 .loop/uv_sync.log
