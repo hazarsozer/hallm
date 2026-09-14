@@ -94,12 +94,48 @@ def generate_p1(out_dir: str | Path) -> list[str]:
     """The original P1 cohort: mechanism decomposition at L8, three seeds."""
     return generate_ablations(out_dir, rung="L8", seeds=list(P1_SEEDS), queue_name="queue-p1.txt")
 
+
+# --- Fixed-storage pilot (spec 2026-09-14 §4.1) --------------------------------------------
+# Every run here is compared against an EXISTING run at the same stored size (and, for the looped
+# arms, the same compute), so the recipe is TRAIN verbatim. Seed-major: each comparison gets a
+# complete seed-1337 point before any second seed starts.
+PILOT = [  # (rung, shape, run-ID arm tag, seeds)
+    ("L8", "s30", "A1u4", [1337, 1338, 1339]),     # vs L8-A2 (matched) and L4-A0 (iso-storage)
+    ("L16", "s30x2", "A1u8", [1337, 1338, 1339]),  # vs L16-A2 (matched) and L8-A0 (iso-storage)
+    ("L9", "s30l9", "A2attn", [1337]),             # vs L8-A0 (iso-storage, −6%)
+    ("L10", "s30l10", "A2attn", [1337]),           # vs L8-A0 (iso-storage, +4%)
+]
+ARM_FOR_TAG = {"A2attn": "A2-attn"}  # run-ID tags carry no hyphen; ARMS keys do
+
+
+def generate_pilot(out_dir: str | Path) -> list[str]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[str] = []
+    for seed in (1337, 1338, 1339):
+        for rung, shape, tag, seeds in PILOT:
+            if seed not in seeds:
+                continue
+            name = f"{rung}-{tag}-s{seed}"
+            spec = {"shape": shape, "arm": ARM_FOR_TAG.get(tag, tag),
+                    "train": {**TRAIN, "seed": seed, "out_dir": f"runs/ladder/{name}"}}
+            (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+            queue.append(str(out / f"{name}.yaml"))
+    (out / "queue-pilot.txt").write_text("\n".join(queue) + "\n", encoding="utf-8")
+    return queue
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="configs/runs")
     ap.add_argument("--p1", action="store_true",
                     help="generate the P1 mechanism-decomposition configs + queue-p1.txt instead")
+    ap.add_argument("--pilot", action="store_true", help="generate the fixed-storage pilot configs + queue-pilot.txt")
     args = ap.parse_args()
+    if args.pilot:
+        queue = generate_pilot(args.out)
+        print(f"wrote {len(queue)} pilot configs to {args.out}/, queue-pilot.txt lists them in drain order")
+        return
     if args.p1:
         queue = generate_p1(args.out)
         print(f"wrote {len(queue)} P1 configs to {args.out}/, queue-p1.txt lists them in drain order")

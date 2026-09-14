@@ -129,6 +129,10 @@ SHAPES: dict[str, ModelConfig] = {
     # campaign width d=512 is L=7 → 22.03M (+5% over target, i.e. a slightly stronger baseline).
     # Width kept at 512 so embeddings are identical and no aspect-ratio confound enters.
     "s30l7": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=7, n_head=8),
+    # Fixed-storage pilot (spec 2026-09-14 §4.1): A2attn stores 10d² per layer, so at A0@L8's 96d²
+    # it can buy ~20% extra depth. L9 (90d², −6%) and L10 (100d², +4%) bracket the target.
+    "s30l9": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=9, n_head=8),
+    "s30l10": ModelConfig(vocab_size=50257, block_size=512, n_embd=512, n_layer=10, n_head=8),
     # P4 unshared frontier points (spec amendment 2026-08-31 §A3): A0@L8's 25.17M non-emb storage
     # re-invested along width. Spec names d724/L4 and d362/L16; rounded to head-divisible widths
     # with head dim near the campaign's 64. Both ~24.9M non-emb (−1%), i.e. slightly weaker than

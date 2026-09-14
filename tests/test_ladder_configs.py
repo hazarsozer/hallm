@@ -108,3 +108,50 @@ def test_p4_unshared_frontier_shapes_land_within_2pct_of_a0_l8_storage():
     for shape in ("p4w720l4", "p4w360l16"):
         n = GPT(arm_config(SHAPES[shape], "A0")).num_parameters(non_embedding=True)
         assert abs(n - ref) / ref < 0.02, (shape, n, ref)
+
+
+# --- Fixed-storage pilot (spec 2026-09-14 §4.1) ---------------------------------------------
+
+def test_generate_pilot_order_and_flags(tmp_path):
+    from scripts.gen_ladder_configs import generate_pilot
+
+    queue = generate_pilot(tmp_path)
+    order = [p.split("/")[-1] for p in queue]
+    assert order == [
+        "L8-A1u4-s1337.yaml", "L16-A1u8-s1337.yaml", "L9-A2attn-s1337.yaml", "L10-A2attn-s1337.yaml",
+        "L8-A1u4-s1338.yaml", "L16-A1u8-s1338.yaml", "L8-A1u4-s1339.yaml", "L16-A1u8-s1339.yaml",
+    ]
+    assert (tmp_path / "queue-pilot.txt").read_text().splitlines() == queue
+    mc, tc = load_experiment(tmp_path / "L16-A1u8-s1338.yaml")
+    assert (mc.n_layer, mc.n_unique_blocks, mc.arm, tc.seed) == (16, 8, "A1u8", 1338)
+    mc, _ = load_experiment(tmp_path / "L9-A2attn-s1337.yaml")
+    assert mc.n_layer == 9 and mc.share_intra_attn and not mc.share_intra_ffn
+
+
+def test_pilot_protocol_matches_the_completed_runs(tmp_path):
+    from scripts.gen_ladder_configs import generate_pilot
+
+    generate_pilot(tmp_path)
+    _, baseline = load_experiment("configs/runs/L8-A0-s1338.yaml")
+    for name in ("L8-A1u4-s1337", "L16-A1u8-s1339", "L10-A2attn-s1337"):
+        _, tc = load_experiment(tmp_path / f"{name}.yaml")
+        for field in ("lr", "min_lr", "warmup_steps", "max_steps", "weight_decay", "grad_clip",
+                      "batch_size", "grad_accum", "dtype", "block_size"):
+            assert getattr(tc, field) == getattr(baseline, field), (name, field)
+
+
+def _block_matrix(cfg) -> int:
+    return sum(p.numel() for p in GPT(cfg).blocks.parameters() if p.ndim == 2)
+
+
+def test_looped_and_wwt_pairs_store_identical_block_weights():
+    """Matched pairs (spec §2): same storage AND same unrolled depth, hence same compute."""
+    assert _block_matrix(arm_config(SHAPES["s30"], "A1u4")) == _block_matrix(arm_config(SHAPES["s30"], "A2"))
+    assert _block_matrix(arm_config(SHAPES["s30x2"], "A1u8")) == _block_matrix(arm_config(SHAPES["s30x2"], "A2"))
+
+
+def test_a2attn_depth_points_bracket_a0_l8_storage():
+    ref = GPT(arm_config(SHAPES["s30"], "A0")).num_parameters(non_embedding=True)
+    n9 = GPT(arm_config(SHAPES["s30l9"], "A2-attn")).num_parameters(non_embedding=True)
+    n10 = GPT(arm_config(SHAPES["s30l10"], "A2-attn")).num_parameters(non_embedding=True)
+    assert n9 < ref < n10
