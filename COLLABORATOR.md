@@ -38,7 +38,10 @@ survive a re-clone, while your local setup stays yours.
 - Results: `results/runs/<run-id>.json`, one file per run.
 - Manifests: `results/manifests/<run-id>.json`.
 - Checkpoints: HF `hallm-thesis/hallm-wikitext103` under `checkpoints/<run-id>/`.
-- Run IDs follow `L<depth>-A<arm>-s<seed>`, e.g. `L4-A2-s1339`.
+- Run IDs follow `L<depth>-A<arm>-s<seed>`, e.g. `L4-A2-s1339`; looped arms are `A1u<k>`
+  (e.g. `L16-A1u8-s1337`); off-ladder runs add a fourth segment (`-lr2x`, `-d720`, `-fw`).
+- Result files report `val_ppl` (the validation split of the run's corpus — WikiText-103, or
+  FineWeb-Edu for `-fw` runs) and, when the corpus's `test.bin` is present, `test_ppl`.
 
 ## Tasks and updates
 

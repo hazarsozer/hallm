@@ -4,6 +4,10 @@
 > `wiki/roadmap/06-scaling-campaign.md`; its protocol constants (§3) and infrastructure (§8) carry
 > forward verbatim. Experiments 1–3 are inputs, not superseded.
 >
+> **Superseded in part (2026-09-14):** the program's question moved to
+> docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md; §2 methodology still
+> applies.
+>
 > **What changed and why.** 06 was organised by *hardware cost* (guaranteed / near-free / gated).
 > That tells you what is affordable but never what is being asked, which is why it read as thin on
 > "what and why". This document is organised by **question**. Every phase declares: the claim, the

@@ -27,11 +27,28 @@ OV circuits (weak path, risk R1). Pre-registered: tax(attn-only) > tax(ffn-only)
 | L16 | 1338 | A2 | 27.1578 | 13.42 | 50.0 | 0.268 |
 | L16 | 1339 | A2 | 26.8802 | 12.27 | 50.0 | 0.245 |
 
-## Verdict
+## Verdict, per rung
 
-- mean tax: FFN-only **8.58%**, attn-only **4.62%** (difference -3.96 pp)
+Rungs are never pooled: pooling lets one rung's ordering overwrite another's (the pooled
+table once named A2ffn against the pre-registered L8 reading, A2attn).
+
+### L4
+
+- mean tax: FFN-only **8.25%**, attn-only **5.61%** (difference -2.64 pp; n = 2 / 2)
 - **H-M1 (not supported)**: attention sharing costs more than FFN sharing by >2pp
-- **H-M2 (supported)**: taxes are additive — A2 14.18% vs ffn+attn 13.20%
-- best cost-per-%-storage-saved: **A2ffn** at 0.258 (A2 baseline 0.278, ALBERT 0.420)
+- **H-M2 (supported)**: taxes are additive — A2 15.35% vs ffn+attn 13.86%
+- best cost-per-%-storage-saved: **A2ffn** at 0.248
 
-<!-- built 2026-09-03T12:01:25+00:00 from 35 run(s) -->
+### L8
+
+- mean tax: FFN-only **8.80%**, attn-only **3.97%** (difference -4.83 pp; n = 3 / 3)
+- **H-M1 (not supported)**: attention sharing costs more than FFN sharing by >2pp
+- **H-M2 (supported)**: taxes are additive — A2 14.42% vs ffn+attn 12.76%
+- best cost-per-%-storage-saved: **A2attn** at 0.237
+
+### L16
+
+- decomposition incomplete at this rung: need both A2ffn and A2attn.
+
+
+<!-- built 2026-09-14T16:47:13+00:00 from 40 run(s) -->

@@ -17,49 +17,56 @@ compresses storage, never compute.
 
 ## Results
 
-### The sharing tax and where it comes from (L8, seeds 1337–1338)
+### The sharing tax and where it comes from (L8, three seeds)
 
 | arm | sharing | stored non-emb | mean tax | cost per % storage saved |
 |-----|---------|---------------|----------|--------------------------|
 | A0 | none | 25.2M | — | — |
-| **A2attn** | **W+Wᵀ attention only** | −16.7% | **+4.13%** | **0.247** |
-| A2ffn | W+Wᵀ FFN only | −33.3% | +9.03% | 0.271 |
-| A2 | W+Wᵀ both | −50.0% | +14.44% | 0.289 |
-| A1 | ALBERT cross-layer | −87.5% | +36.7%\* | 0.420 |
-| A3 | both axes | −93.7% | +66.2%\* | 0.706 |
+| **A2attn** | **W+Wᵀ attention only** | −16.7% | **+3.97%** | **0.237** |
+| A2ffn | W+Wᵀ FFN only | −33.3% | +8.80% | 0.264 |
+| A2 | W+Wᵀ both | −50.0% | +14.42% | 0.288 |
+| A1 | ALBERT cross-layer | −87.5% | +36.7%\* | n/a† |
+| A3 | both axes | −93.7% | +66.2%\* | n/a† |
 
-\* A1 and A3 are **single-seed (1337)**; every other row is a 2-seed mean. They have not been
+\* A1 and A3 are **single-seed (1337)**; every other row is a 3-seed mean. They have not been
 replicated and their taxes carry no error estimate.
+† A per-%-saved ratio is not comparable across very different compression levels; the matched
+looped-vs-W+Wᵀ test is in results/reports/iso-storage.md.
 
-The decomposition **inverted the project's mechanistic prediction**. `wiki/roadmap/01-mechanism.md`
-argued the FFN path was strong (a genuine nonlinearity sits between `W` and `Wᵀ`) and the causal
-attention path fragile (K and V both linear in the same `x`, risk R1). Measured directly, attention
-sharing is the *cheapest* mechanism — absolutely and per parameter saved. Taxes are additive
-(residuals +1.04 and +1.51 pp, inside the ±2 pp pre-registered band).
+The decomposition **inverted the project's mechanistic prediction at the pre-registered L8 rung**.
+`wiki/roadmap/01-mechanism.md` argued the FFN path was strong (a genuine nonlinearity sits between
+`W` and `Wᵀ`) and the causal attention path fragile (K and V both linear in the same `x`, risk R1).
+Measured directly, attention sharing is the *cheapest* mechanism at L8 — absolutely and per
+parameter saved. Taxes are additive (residuals +1.04, +1.51, +2.42 pp across the three seeds, mean
++1.66). At L4 (T-001, two seeds) the ordering flips: FFN-only is cheapest per % saved there, so the
+inversion is scale-dependent rather than a fixed property of the sublayer.
 
-What replaces the strong/weak story: **the cost is roughly proportional to capacity removed**,
-~0.25–0.29% PPL per 1% of non-embedding storage, with a mild penalty for removing more. That single
-rate reproduces every arm above, and it explains why nothing reaches the <2% viability gate —
-at 0.247, a 2% tax buys only ~8% storage reduction.
+What replaces the strong/weak story: **the cost is roughly proportional to capacity removed, at a
+given rung** — ~0.24–0.29% PPL per 1% of non-embedding storage at L8, with a mild penalty for
+removing more. That rate reproduces every arm measured at L8, and it explains why nothing reaches
+the <2% viability gate — at 0.237, a 2% tax buys only ~8.4% storage reduction. Per-rung tables and
+verdicts: RESULTS.md Experiment 4.
 
 ### The tax shrinks with scale (H-S — supported)
 
 | rung | non-emb (unshared) | seeds | mean tax | SE |
 |------|--------------------|-------|----------|-----|
-| L4 | 12.6M | 2 | 15.27% | 0.33 |
-| L8 | 25.2M | 2 | 14.44% | 0.57 |
+| L4 | 12.6M | 3 | 15.35% | 0.20 |
+| L8 | 25.2M | 3 | 14.42% | 0.33 |
 | L16 | 50.3M | 3 | 12.78% | 0.34 |
 
 Pre-registered rule: regress tax on log₂(non-embedding params); supported iff the slope's 95% CI
-excludes zero on the negative side. Result over 7 pairs: **−1.27 pp per doubling, CI [−1.96, −0.57]
+excludes zero on the negative side. Result over 9 pairs: **−1.28 pp per doubling, CI [−1.78, −0.79]
 → SUPPORTED**.
 
-Stated honestly: extrapolating that decay to a <2% tax implies ~19B non-embedding parameters. The
-ladder characterises a *rate*; it does not lead to the viability gate.
+Stated honestly: extrapolating that decay to a <2% tax implies ~18B non-embedding parameters
+(18,020M). The ladder characterises a *rate*; it does not lead to the viability gate.
 
 ### Iso-storage: sharing does not buy free capacity
 
-| model | depth | stored non-emb | test PPL | Δ vs A0 |
+Seed 1337 only (the 3-seed mean for A2-iso vs A0 is +3.9%, `results/reports/iso-storage.md`).
+
+| model | depth | stored non-emb | val PPL | Δ vs A0 |
 |-------|-------|---------------|----------|---------|
 | A0 | 8 | 25.17M | 26.06 | — |
 | A2-iso | 16 | 25.18M | 27.01 | +3.6% |
@@ -87,6 +94,7 @@ src/hallm/
   model/sharing.py     THE CRUX — W+Wᵀ intra-layer + ALBERT cross-layer mechanisms
   model/gpt.py         decoder-only GPT assembled from sharing-aware sublayers
   data/wikitext.py     GPT-2 BPE tokenization, .bin token streams, batch sampling
+  data/fineweb.py       FineWeb-Edu → uint16 token bins, EOT-joined documents
   train.py             matched-budget loop · exact resume · checkpoints · val probe
   eval.py              perplexity + the arm comparison table
   metrics.py           params · size · analytic FLOPs · KV-cache and memory accounting
@@ -106,20 +114,26 @@ results/
   runs/<run-id>.json   SOURCE OF TRUTH — one file per run, atomic, idempotent
   manifests/<run-id>.json  frozen provenance, written once at launch
   reports/*.md         GENERATED and disposable — never hand-edit
+  capability/<run-id>.json  per-run capability-eval results
 
 scripts/
   run_queue.py         GPU session entry point; drains a queue, resumes mid-run
   gen_ladder_configs.py  generate ladder + ablation configs and their queues
   build_reports.py     rebuild every comparison table from results/runs/
   migrate_results.py   fold a legacy ledger into per-run result files
+  eval_split.py         score finished checkpoints on a held-out split (val/test)
+  hf_fetch.py            download finished checkpoints from the HF store
   hf_sync.py           add-only checkpoint upload to the HF store
   hf_migrate_legacy.py  hash-verified migration of legacy HF paths
+  prepare_fineweb.py     download FineWeb-Edu and write data/fineweb/*.bin
+  migrate_ppl_split.py   one-time test_ppl → val_ppl rename (2026-09-14)
   capability_eval.py   inference-only capability evals over checkpoints
   run_real_training.py  data prep + single-run training
   chain_*.sh           unattended GPU supervisors (relaunch on crash)
 
-tests/                 12 files, 78 tests — param-count proofs, smoke, resume,
-                       queue semantics, manifests, reports, metrics
+tests/                 17 files, 133 tests — param-count proofs, smoke, resume,
+                       queue semantics, manifests, reports, metrics, capability
+                       evals, FineWeb data, val/test split migration
 docs/superpowers/      specs/ (approved designs) and plans/ (implementation)
 wiki/                  curated research base: roadmap, analyses, concepts, sources
 raw/papers/            cited PDFs
@@ -130,11 +144,12 @@ runs/                  gitignored runtime scratch (checkpoints, resume state)
 
 `L<depth>-A<arm>-s<seed>` — e.g. `L16-A2-s1339`. Everything unstated is the campaign default
 (d=512, ctx=512, WikiText-103, standard budget). A run varying one of those gains an explicit
-segment (`L8d768-A2-s1337`, `L8-A2-s1337-owt`) rather than overloading an existing one. The ID is
-a key, not a spec — the manifest is the authority on configuration.
+segment (`L8d768-A2-s1337`, `L8-A2-s1337-owt`, `L8-A2attn-s1337-fw`) rather than overloading an
+existing one. The ID is a key, not a spec — the manifest is the authority on configuration.
 
 Arms: `A0` none · `A1` ALBERT cross-layer · `A2` W+Wᵀ both · `A3` both axes ·
-`A2ffn` W+Wᵀ FFN only · `A2attn` W+Wᵀ attention only.
+`A2ffn` W+Wᵀ FFN only · `A2attn` W+Wᵀ attention only ·
+`A1u<k>` looped: k blocks cycled to depth L.
 
 ### Where each artifact lives
 
@@ -152,7 +167,7 @@ Arms: `A0` none · `A1` ALBERT cross-layer · `A2` W+Wᵀ both · `A3` both axes
 
 ```bash
 uv sync
-uv run pytest                # 78 tests
+uv run pytest                # 133 tests
 ```
 
 Real training is GPU-only and never launched by an automated loop:
@@ -190,6 +205,9 @@ uv run python scripts/capability_eval.py --checkpoints 'runs/ladder/*/*.pt' \
 
 The research program — what is being asked at each phase, the pre-registered decision rules, and
 what a negative result buys — is in
-[`docs/superpowers/specs/2026-08-20-research-program-design.md`](docs/superpowers/specs/2026-08-20-research-program-design.md).
+[`docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md`](docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md),
+with
+[`docs/superpowers/specs/2026-08-20-research-program-design.md`](docs/superpowers/specs/2026-08-20-research-program-design.md)
+(questions superseded; methodology carried forward) as background.
 Artifact naming and store layout:
 [`docs/superpowers/specs/2026-08-19-artifact-layout-design.md`](docs/superpowers/specs/2026-08-19-artifact-layout-design.md).

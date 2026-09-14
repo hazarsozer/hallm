@@ -6,6 +6,9 @@ sources_consulted: ["wiki/analyses/halvit-vs-albert-cross-layer-sharing", "wiki/
 
 # Four-arm results — first full run (2026-08-18, RTX 4070 Super)
 
+**Correction (2026-09-14, see RESULTS.md):** the "test PPL" numbers below are WikiText-103
+**validation** PPL — the runner never read test.bin at the time of this run.
+
 Setup: `sharedlm` harness, shape s30 (d=512, L=8, H=8, ctx=512, GPT-2 BPE vocab 50257), WikiText-103 (119.2M train tokens), matched budget: 50k steps × 12,288 tokens/step ≈ 614M tokens per arm, identical seed/hparams (lr 6e-4 cosine, wd 0.1, bf16). ~2.5h/arm, ~8 GiB peak. Checkpoints + `results.json` + `comparison.md` in `runs/`.
 
 ## Results

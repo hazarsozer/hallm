@@ -129,7 +129,8 @@ split, ≥2.5B training tokens tokenised once (~5 GB).
   storage)`. Supported for X iff the mean is lower **and** the sign holds in every paired seed.
 - **H-L (which kind spends compute better):** at matched storage and compute (§2 pairs), report the
   paired PPL difference, mean ± SE over seeds. "X beats Y" iff the sign holds in all 3 seeds and
-  |mean| > 2 SE; otherwise "no difference detected".
+  |mean| > 2 SE; otherwise "no difference detected". The paired difference is the relative
+  difference in percent, `(PPL_a − PPL_b) / PPL_b`, as reported in `results/reports/iso-storage.md`.
 - **H-R (reasoning, Track 1 half):** for each probe, the same two rules applied to the probe metric
   (accuracy or loss) instead of PPL.
 
@@ -210,6 +211,8 @@ re-investment (d576/L8 from T-003) · looping × W+Wᵀ combined at iso-storage.
    if no meeting happens by the gate.
 5. **Alper:** this spec pushed to `main` (shows up in `tasks.py check` as an update); T-006 filed.
 6. **Old spec:** status line on `2026-08-20-research-program-design.md` pointing here.
+7. **Split labels:** every PPL before 2026-09-14 was val, labelled test. Renamed to val_ppl; true
+   test_ppl added for surviving checkpoints (results/reports/splits.md).
 
 ## 11. Risks
 
