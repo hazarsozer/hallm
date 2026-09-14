@@ -6,6 +6,7 @@ why re-investing shared weights into depth pays the saving back in cache.
 
 | run | weight MB (bf16) | KV MB @ctx512 b1 | KV MB @ctx2048 b8 | weight share @ctx512 |
 |---|---|---|---|---|
+| L10-A2attn-s1337 | 104.4 | 10.5 | 335.5 | 90.9% |
 | L16-A0-s1337 | 152.7 | 16.8 | 536.9 | 90.1% |
 | L16-A0-s1338 | 152.7 | 16.8 | 536.9 | 90.1% |
 | L16-A0-s1339 | 152.7 | 16.8 | 536.9 | 90.1% |
@@ -41,4 +42,4 @@ why re-investing shared weights into depth pays the saving back in cache.
 | L8-A3-s1337 | 55.1 | 8.4 | 268.4 | 86.8% |
 | L9-A2attn-s1337 | 99.2 | 9.4 | 302.0 | 91.3% |
 
-<!-- built 2026-09-14T21:22:26+00:00 from 42 run(s) -->
+<!-- built 2026-09-14T23:40:18+00:00 from 43 run(s) -->
