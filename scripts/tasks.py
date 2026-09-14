@@ -264,7 +264,8 @@ def cmd_report(args) -> int:
             problems.append(f"{rid}: missing {man}")
             continue
         row = json.loads(res.read_text())
-        lines.append(f"- `{rid}` — test_ppl **{row.get('test_ppl')}**")
+        ppl = row.get("val_ppl", row.get("test_ppl"))
+        lines.append(f"- `{rid}` — val_ppl **{ppl}**")
         # Protocol conformance: an ablation is only evidence if the recipe did not drift.
         ref = task["spec"].get("protocol_reference")
         if ref and Path(f"results/manifests/{ref}.json").exists():

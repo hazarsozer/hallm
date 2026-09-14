@@ -40,33 +40,35 @@ def evaluate_perplexity(
 
 
 def evaluate_arm(
-    model: GPT, cfg: ModelConfig, data, block_size: int | None = None, batch_size: int = 8, device=None
+    model: GPT, cfg: ModelConfig, data, block_size: int | None = None, batch_size: int = 8,
+    device=None, key: str = "test_ppl",
 ) -> dict:
-    """One arm → a full results row (perplexity + params/size/FLOPs)."""
+    """One arm → a full results row (perplexity under ``key`` + params/size/FLOPs). Callers name the
+    split they scored: the campaign runner writes val.bin as ``val_ppl`` and test.bin as ``test_ppl``."""
     ppl = evaluate_perplexity(model, data, block_size or cfg.block_size, batch_size, device)
     row = metrics_row(model, cfg)
-    row["test_ppl"] = round(ppl, 4)
+    row[key] = round(ppl, 4)
     return row
 
 
-def comparison_table(rows: list[dict], baseline_arm: str = "A0") -> str:
+def comparison_table(rows: list[dict], baseline_arm: str = "A0", ppl_key: str = "test_ppl") -> str:
     """Render the four-way comparison as a markdown table with Δ% vs baseline and the viability gate."""
     base = next((r for r in rows if r["arm"] == baseline_arm), None)
-    base_ppl = base["test_ppl"] if base else None
+    base_ppl = base[ppl_key] if base else None
     header = (
-        "| arm | nonemb_M | total_M | size_fp32_MB | gflops | test_ppl | Δ% vs A0 | viable |\n"
+        f"| arm | nonemb_M | total_M | size_fp32_MB | gflops | {ppl_key} | Δ% vs A0 | viable |\n"
         "|-----|----------|---------|--------------|--------|----------|----------|--------|"
     )
     lines = [header]
     for r in rows:
         if base_ppl:
-            d = (r["test_ppl"] - base_ppl) / base_ppl * 100.0
+            d = (r[ppl_key] - base_ppl) / base_ppl * 100.0
             delta = f"{d:+.2f}%"
             viable = "—" if r["arm"] == baseline_arm else ("✓" if d <= VIABILITY_GATE * 100 else "✗")
         else:
             delta, viable = "n/a", "n/a"
         lines.append(
             f"| {r['arm']} | {r['non_embedding_params_M']} | {r['total_params_M']} | "
-            f"{r['size_fp32_MB']} | {r['fwd_gflops']} | {r['test_ppl']} | {delta} | {viable} |"
+            f"{r['size_fp32_MB']} | {r['fwd_gflops']} | {r[ppl_key]} | {delta} | {viable} |"
         )
     return "\n".join(lines)

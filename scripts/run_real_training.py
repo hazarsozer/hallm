@@ -63,11 +63,11 @@ def cmd_run(args: argparse.Namespace) -> None:
         print(f"\n=== {model_cfg.arm} ({Path(cfg_file).name}) — {train_cfg.max_steps} steps on {device} ===")
         train(model, train_cfg, train_data, device=device, progress=True)
         save_checkpoint(model, model_cfg, train_cfg, out / f"{model_cfg.arm}.pt")
-        row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device)
+        row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device, key="val_ppl")
         rows.append(row)
         print(row)
 
-    table = comparison_table(rows)
+    table = comparison_table(rows, ppl_key="val_ppl")
     (out / "comparison.md").write_text(table + "\n", encoding="utf-8")
     (out / "results.json").write_text(json.dumps(rows, indent=2), encoding="utf-8")
     print("\nFour-way comparison (also written to", out / "comparison.md", "):\n")

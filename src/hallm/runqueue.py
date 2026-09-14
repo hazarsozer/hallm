@@ -12,9 +12,9 @@ from pathlib import Path
 import torch
 
 from hallm.data import load_bin
-from hallm.eval import evaluate_arm
+from hallm.eval import evaluate_arm, evaluate_perplexity
 from hallm.experiment import load_experiment
-from hallm.manifest import build_manifest, write_manifest
+from hallm.manifest import build_manifest, file_sha256, write_manifest
 from hallm.metrics import memory_row
 from hallm.results import write_run_result
 from hallm.model import GPT
@@ -85,7 +85,14 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
         return PAUSED
 
     save_checkpoint(model, model_cfg, train_cfg, final)
-    row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device)
+    # Split labels (2026-09-14): val.bin is scored as val_ppl — until this date it was mislabelled
+    # test_ppl. test.bin, when present, gives the true held-out number.
+    row = evaluate_arm(model, model_cfg, val_data, batch_size=8, device=device, key="val_ppl")
+    test_bin = data_dir / "test.bin"
+    if test_bin.exists():
+        row["test_ppl"] = round(evaluate_perplexity(model, load_bin(test_bin), model_cfg.block_size,
+                                                    8, device), 4)
+        row["test_split_sha256"] = file_sha256(test_bin)
     row["run"] = name
     # Measured memory + the train/val endpoints, so the generalisation gap is recoverable later
     # without re-reading a log that may not survive the session (spec P0 items 1, 3, 4).

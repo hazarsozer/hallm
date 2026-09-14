@@ -17,10 +17,10 @@ SMOKE_TRAIN = dict(
 )
 
 
-def _setup(tmp_path):
+def _setup(tmp_path, with_test=True):
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    for split in ("train", "val"):
+    for split in ("train", "val") + (("test",) if with_test else ()):
         make_synthetic_data(SHAPES["smoke"].vocab_size, 2048, seed=0).tofile(data_dir / f"{split}.bin")
     cfgs = []
     for arm in ("A0", "A2"):
@@ -41,10 +41,17 @@ def test_run_one_trains_freezes_and_skips(tmp_path):
     out = tmp_path / "runs" / "smoke-A0-s7"
     assert (out / "smoke-A0-s7.pt").exists()
     assert (out / "manifest.json").exists()
-    assert row["run"] == "smoke-A0-s7" and "test_ppl" in row
+    assert row["run"] == "smoke-A0-s7"
+    assert {"val_ppl", "test_ppl", "test_split_sha256"} <= set(row)
     manifest = json.loads((out / "manifest.json").read_text())
     assert set(manifest["data_sha256"]) == {"train.bin", "val.bin"}
     assert run_one(cfgs[0], data_dir, device="cpu") is None  # done ⇒ skip
+
+
+def test_run_one_without_a_test_split_records_val_only(tmp_path):
+    data_dir, cfgs, _ = _setup(tmp_path, with_test=False)
+    row = run_one(cfgs[0], data_dir, device="cpu")
+    assert "val_ppl" in row and "test_ppl" not in row
 
 
 def test_run_one_resumes_after_interrupt(tmp_path):

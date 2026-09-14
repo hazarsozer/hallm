@@ -74,4 +74,4 @@ def test_drain_writes_per_run_files_not_an_appended_ledger(tmp_path):
     written = sorted(p.name for p in results_dir.glob("*.json"))
     assert written == ["smoke-A0-s7.json", "smoke-A2-s7.json"]
     payload = json.loads((results_dir / "smoke-A0-s7.json").read_text())
-    assert payload["run"] == "smoke-A0-s7" and "test_ppl" in payload
+    assert payload["run"] == "smoke-A0-s7" and "val_ppl" in payload
