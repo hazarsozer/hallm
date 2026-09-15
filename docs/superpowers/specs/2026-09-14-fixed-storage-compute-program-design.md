@@ -106,6 +106,9 @@ all at 3 seeds). Extra A2attn seeds only if a seed-1337 point lands within 1% of
 > **Trigger fired 2026-09-15:** `L10-A2attn-s1337` landed at +0.05% vs `L8-A0` (within 1%), so
 > seeds 1338/1339 of `L10-A2attn` were added to the pilot queue. `L9-A2attn` (+1.81%) stays at one seed.
 
+> **Exploratory amendment 2026-09-15:** three transposed-loop arms (`L8-A1u4t/n/a`) and an FFN
+> symmetry measurement join the pilot — see `2026-09-15-transposed-loop-design.md` §2–§5.
+
 Structural note to record: A2attn saves only 16.7% per layer, so at iso-storage it can buy at most
 ~20% extra depth; full A2 buys 2×; looping buys any multiple. The kinds differ in *how much* compute
 they can buy, not only in how well they spend it.
@@ -165,6 +168,9 @@ Filed as a GitHub task (T-006, via `scripts/tasks.py` conventions): build + sizi
 full grid in Phase 2.
 
 ## 6. The gate (Oct 5) — pre-registered
+
+> **Amended 2026-09-15:** if a transposed-loop variant passes H-T, it takes the W+Wᵀ slot and
+> plain W+Wᵀ runs one 124M seed, queued last — `2026-09-15-transposed-loop-design.md` §4.
 
 The gate decides **which variant of each kind** runs at 124M, not whether 124M runs. The 124M grid
 is always three arms: unshared, the best W+Wᵀ variant, the best looped variant.
