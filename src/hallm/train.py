@@ -180,6 +180,7 @@ def train(
 
         if step % train_cfg.log_interval == 0 or step == train_cfg.max_steps - 1:
             rec = {"step": step, "loss": loss_accum, "lr": lr}
+            rec.update(model.loop_scales() if hasattr(model, "loop_scales") else {})  # transposed-loop α
             if (
                 val_data is not None
                 and train_cfg.eval_interval > 0
