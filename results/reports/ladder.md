@@ -36,4 +36,4 @@ Pre-registered decision rule (program spec P3): regress tax on log2(non-embeddin
 
 Extrapolated non-embedding size for a <2% tax: **18,020M params**. Reported to keep the decay honest — the ladder characterises a rate, it does not lead to the viability gate.
 
-<!-- built 2026-09-15T14:17:22+00:00 from 48 run(s) -->
+<!-- built 2026-09-15T21:32:33+00:00 from 49 run(s) -->

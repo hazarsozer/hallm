@@ -73,4 +73,4 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | L16-A1u8 | L16-A2 | matched | late_loss | 3 | -2.21 | L16-A1u8 better |
 | L16-A1u8 | L16-A2 | matched | rare_loss | 3 | -2.01 | L16-A1u8 better |
 
-<!-- built 2026-09-15T14:17:22+00:00 from 48 run(s) -->
+<!-- built 2026-09-15T21:32:33+00:00 from 49 run(s) -->
