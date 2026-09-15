@@ -149,7 +149,7 @@ existing one. The ID is a key, not a spec — the manifest is the authority on c
 
 Arms: `A0` none · `A1` ALBERT cross-layer · `A2` W+Wᵀ both · `A3` both axes ·
 `A2ffn` W+Wᵀ FFN only · `A2attn` W+Wᵀ attention only ·
-`A1u<k>` looped: k blocks cycled to depth L. ·
+`A1u<k>` looped: k blocks cycled to depth L.
 `A1u<k>t|n|a` transposed loop: odd passes reuse the blocks with Wᵀ — added, subtracted, or
 scaled by a learned α (spec 2026-09-15).
 
