@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+
+import pytest
 import torch
 import torch.nn.functional as F
 
@@ -103,3 +106,45 @@ def test_hallm_shares_match_autograd_jacobian_oracle():
                 lambda v: mlp(v, transposed=tr), u[i]) for i in range(u.shape[0])])
             oracle = float(antisymmetric_share(jac).mean())
             assert abs(shares[layer] - oracle) < 1e-9
+
+
+def test_vit_collector_on_a_tiny_random_vit():
+    transformers = pytest.importorskip("transformers")
+    from hallm.symmetry import vit_rotation_shares
+
+    cfg = transformers.ViTConfig(hidden_size=32, num_hidden_layers=2, num_attention_heads=2,
+                                 intermediate_size=64, image_size=32, patch_size=8, hidden_act="gelu")
+    torch.manual_seed(0)
+    vit = transformers.ViTModel(cfg).eval()
+    shares = vit_rotation_shares(vit, torch.randn(3, 3, 32, 32), n_positions=30)
+    assert len(shares) == 2 and all(0.0 < s < 1.0 for s in shares)
+
+
+def test_vit_collector_rejects_a_non_gelu_model():
+    transformers = pytest.importorskip("transformers")
+    from hallm.symmetry import vit_rotation_shares
+
+    cfg = transformers.ViTConfig(hidden_size=32, num_hidden_layers=1, num_attention_heads=2,
+                                 intermediate_size=64, image_size=32, patch_size=8, hidden_act="relu")
+    with pytest.raises(ValueError):
+        vit_rotation_shares(transformers.ViTModel(cfg).eval(), torch.randn(1, 3, 32, 32))
+
+
+def test_script_writes_json_and_report_for_an_lm_checkpoint(tmp_path):
+    from hallm.data import make_synthetic_data
+    from hallm.train import TrainConfig, save_checkpoint
+    from scripts.ffn_symmetry import main
+
+    cfg = arm_config(SMOKE, "A0")
+    save_checkpoint(GPT(cfg), cfg, TrainConfig(), tmp_path / "smoke-A0-s7.pt")
+    data = tmp_path / "data"
+    data.mkdir()
+    make_synthetic_data(SMOKE.vocab_size, 4096, seed=0).tofile(data / "val.bin")
+    out, rep = tmp_path / "sym.json", tmp_path / "sym.md"
+    main(["--checkpoints", str(tmp_path / "*.pt"), "--data", str(data), "--n-positions", "32",
+          "--windows", "2", "--out", str(out), "--report", str(rep), "--device", "cpu"])
+    rows = json.loads(out.read_text())
+    lm = next(r for r in rows if r["model"] == "smoke-A0-s7")
+    assert lm["kind"] == "lm" and len(lm["per_layer"]) == SMOKE.n_layer
+    assert any(r["model"] == "random" for r in rows)
+    assert "smoke-A0-s7" in rep.read_text()

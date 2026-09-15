@@ -80,3 +80,45 @@ def hallm_rotation_shares(model, idx: torch.Tensor, n_positions: int = 256, seed
         w_up, w_down, b_up = effective_ffn_weights(mlp, transposed)
         out.append(rotation_share(w_up, w_down, u[pick.to(u.device)], b_up=b_up))
     return out
+
+
+@torch.no_grad()
+def vit_rotation_shares(vit_model, pixel_values: torch.Tensor, n_positions: int = 256,
+                        seed: int = 0) -> list[float]:
+    """Same measure for a Hugging Face ViTModel (DeiT-small loads as one): the FFN input is the
+    `layernorm_after` output, i.e. the input of the up projection (W_up, biased); the down projection
+    is the second MLP linear. Requires exact GELU so gelu_grad is the right derivative.
+
+    NOTE: as of the installed `transformers` (5.17.0), `ViTModel` has no `.encoder.layer` /
+    `.intermediate.dense` / `.output.dense` — the encoder stack is `vit_model.layers` directly and
+    each `ViTLayer`'s FFN is `layer.mlp` with `fc1` (up, d→h) / `fc2` (down, h→d); `fc1`'s input is
+    still exactly the `layernorm_after` output (confirmed from `ViTLayer.forward` source), so the
+    measured quantity is unchanged from the plan's description — only the attribute path differs.
+
+    Draws ONE position subset shared by every layer (so all ViT layers see the same number of token
+    positions, mirroring `hallm_rotation_shares`), and runs the model in eval mode, restoring its
+    original training mode afterward."""
+    if vit_model.config.hidden_act != "gelu":
+        raise ValueError(f"expected hidden_act='gelu', got {vit_model.config.hidden_act!r}")
+    layers = vit_model.layers
+    inputs: dict[int, list[torch.Tensor]] = {i: [] for i in range(len(layers))}
+    hooks = [layer.mlp.fc1.register_forward_pre_hook(
+                 lambda m, args, i=i: inputs[i].append(args[0].detach().reshape(-1, args[0].shape[-1])))
+             for i, layer in enumerate(layers)]
+    was_training = vit_model.training
+    vit_model.eval()
+    try:
+        vit_model(pixel_values=pixel_values)
+    finally:
+        for h in hooks:
+            h.remove()
+        vit_model.train(was_training)
+    n_total = torch.cat(inputs[0]).shape[0]
+    gen = torch.Generator().manual_seed(seed)
+    pick = torch.randperm(n_total, generator=gen)[:n_positions]
+    out = []
+    for i, layer in enumerate(layers):
+        u = torch.cat(inputs[i])
+        up, down = layer.mlp.fc1, layer.mlp.fc2
+        out.append(rotation_share(up.weight, down.weight, u[pick.to(u.device)], b_up=up.bias))
+    return out
