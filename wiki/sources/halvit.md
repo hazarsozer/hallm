@@ -1,10 +1,10 @@
 ---
 title: "HaLViT: Half of the Weights are Enough"
 arxiv: null
-venue: "CVPR Workshop (Computer Vision Foundation, Open Access)"
+venue: "CVPR 2024 Workshops (ELVM), Computer Vision Foundation Open Access"
 authors: ["Onur Can Koyun", "Behçet Uğur Töreyin"]
 affiliation: "SP4CING, Dept. of AI and Data Engineering, Istanbul Technical University"
-year: 2023
+year: 2024
 category: weight-sharing
 status: ingested
 source_file: raw/papers/halvit.pdf
