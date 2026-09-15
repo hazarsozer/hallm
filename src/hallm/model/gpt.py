@@ -38,7 +38,7 @@ class Block(nn.Module):
             self.alpha_attn = nn.Parameter(torch.ones(()))
             self.alpha_mlp = nn.Parameter(torch.ones(()))
 
-    def _pass2_scales(self):
+    def _pass2_scales(self) -> tuple[float | torch.Tensor, float | torch.Tensor]:
         if self.pass2 == "negate":
             return -1.0, -1.0
         if self.pass2 == "scaled":
@@ -113,8 +113,8 @@ class GPT(nn.Module):
             return {}
         out: dict[str, float] = {}
         for j, block in enumerate(self.blocks):
-            out[f"alpha_attn_{j}"] = round(float(block.alpha_attn), 6)
-            out[f"alpha_mlp_{j}"] = round(float(block.alpha_mlp), 6)
+            out[f"alpha_attn_{j}"] = round(block.alpha_attn.item(), 6)
+            out[f"alpha_mlp_{j}"] = round(block.alpha_mlp.item(), 6)
         return out
 
     def num_parameters(self, non_embedding: bool = False) -> int:
