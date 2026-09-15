@@ -1,0 +1,21 @@
+{
+  "arm": "A1u4",
+  "dataset": "wikitext-103",
+  "final_train_loss": 3.249,
+  "final_val_loss": 3.333,
+  "fwd_gflops": 56.4139,
+  "kv_bytes_ctx2048_b8": 268435456,
+  "kv_bytes_ctx512_b1": 8388608,
+  "non_embedding_params_M": 12.5875,
+  "nonemb_weight_bytes_bf16": 25175040,
+  "peak_vram_bytes": 5494627328,
+  "run": "L8-A1u4-s1338",
+  "size_bf16_MB": 73.588,
+  "size_fp32_MB": 147.176,
+  "test_ppl": 28.5011,
+  "test_split_sha256": "7fead09117d65b366de16befafc09887aadaf1bb457f5292ce3bb89f83e929d6",
+  "total_params_M": 38.5812,
+  "val_ppl": 28.2379,
+  "weight_bytes_bf16": 77162496,
+  "weight_frac_of_total_ctx512_b1": 0.9019
+}
