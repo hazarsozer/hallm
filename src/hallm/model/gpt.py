@@ -21,7 +21,11 @@ from hallm.model.sharing import CausalSelfAttention, MLP, build_blocks
 
 
 class Block(nn.Module):
-    """Pre-LN transformer block: x + attn(LN(x)); x + mlp(LN(x))."""
+    """Pre-LN transformer block: x + attn(LN(x)); x + mlp(LN(x)).
+
+    Transposed loop (spec 2026-09-15): on a transposed pass the sublayers use their weights
+    transposed and each update is multiplied by +1 ("transpose"), −1 ("negate") or a learned
+    per-sublayer α initialised to 1 ("scaled"). LayerNorm gains are shared by both passes."""
 
     def __init__(self, cfg: ModelConfig) -> None:
         super().__init__()
@@ -29,10 +33,26 @@ class Block(nn.Module):
         self.attn = CausalSelfAttention(cfg)
         self.ln2 = nn.LayerNorm(cfg.n_embd, bias=cfg.bias)
         self.mlp = MLP(cfg)
+        self.pass2 = cfg.loop_pass2
+        if cfg.loop_pass2 == "scaled":
+            self.alpha_attn = nn.Parameter(torch.ones(()))
+            self.alpha_mlp = nn.Parameter(torch.ones(()))
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = x + self.attn(self.ln1(x))
-        x = x + self.mlp(self.ln2(x))
+    def _pass2_scales(self):
+        if self.pass2 == "negate":
+            return -1.0, -1.0
+        if self.pass2 == "scaled":
+            return self.alpha_attn, self.alpha_mlp
+        return 1.0, 1.0
+
+    def forward(self, x: torch.Tensor, transposed: bool = False) -> torch.Tensor:
+        if not transposed:
+            x = x + self.attn(self.ln1(x))
+            x = x + self.mlp(self.ln2(x))
+            return x
+        s_attn, s_mlp = self._pass2_scales()
+        x = x + s_attn * self.attn(self.ln1(x), transposed=True)
+        x = x + s_mlp * self.mlp(self.ln2(x), transposed=True)
         return x
 
 
@@ -71,7 +91,11 @@ class GPT(nn.Module):
 
         n_unique = len(self.blocks)
         for i in range(self.cfg.n_layer):
-            x = self.blocks[i % n_unique](x)   # cross-layer: n_unique==1 ⇒ block 0 reused L times
+            block = self.blocks[i % n_unique]   # cross-layer: n_unique==1 ⇒ block 0 reused L times
+            if self.cfg.loop_pass2 is not None and (i // n_unique) % 2 == 1:
+                x = block(x, transposed=True)   # transposed loop: odd passes use Wᵀ (spec 2026-09-15)
+            else:
+                x = block(x)
         x = self.ln_f(x)
 
         if targets is not None:
@@ -82,6 +106,16 @@ class GPT(nn.Module):
             return logits, loss
         logits = self.head(x[:, [-1], :])   # only the last position is needed at inference
         return logits, None
+
+    def loop_scales(self) -> dict[str, float]:
+        """Learned pass-2 multipliers of the transposed loop's `a` variant; empty for every other arm."""
+        if self.cfg.loop_pass2 != "scaled":
+            return {}
+        out: dict[str, float] = {}
+        for j, block in enumerate(self.blocks):
+            out[f"alpha_attn_{j}"] = round(float(block.alpha_attn), 6)
+            out[f"alpha_mlp_{j}"] = round(float(block.alpha_mlp), 6)
+        return out
 
     def num_parameters(self, non_embedding: bool = False) -> int:
         """Total unique parameters (tied/shared tensors counted once via the id memo in parameters())."""

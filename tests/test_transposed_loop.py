@@ -12,6 +12,7 @@ import torch.nn.functional as F
 import prepatch_fixture
 from hallm.model import GPT, SHAPES, arm_config
 from hallm.model.config import ModelConfig
+from hallm.model.gpt import Block
 from hallm.model.sharing import MLP, CausalSelfAttention
 
 SMOKE = SHAPES["smoke"]
@@ -118,3 +119,88 @@ def test_transposed_path_rejects_halvit_sublayers():
         MLP(dataclasses.replace(SMOKE, share_intra_ffn=True))(x, transposed=True)
     with pytest.raises(ValueError):
         CausalSelfAttention(dataclasses.replace(SMOKE, share_intra_attn=True))(x, transposed=True)
+
+
+def _params(model):
+    return model.num_parameters()
+
+
+@pytest.mark.parametrize("suffix", ["t", "n"])
+def test_zero_param_variants_match_the_plain_loop(suffix):
+    assert _params(GPT(arm_config(_deep(4), f"A1u2{suffix}"))) == _params(GPT(arm_config(_deep(4), "A1u2")))
+
+
+def test_scaled_variant_adds_two_scalars_per_block():
+    plain = _params(GPT(arm_config(_deep(4), "A1u2")))
+    assert _params(GPT(arm_config(_deep(4), "A1u2a"))) == plain + 2 * 2
+
+
+def test_odd_passes_are_transposed():
+    model = GPT(arm_config(_deep(4), "A1u2t"))
+    calls = []
+    for j, block in enumerate(model.blocks):
+        block.register_forward_pre_hook(
+            lambda m, args, kwargs, j=j: calls.append((j, kwargs.get("transposed", False))),
+            with_kwargs=True)
+    model(torch.zeros(1, 8, dtype=torch.long))
+    assert calls == [(0, False), (1, False), (0, True), (1, True)]
+
+
+def test_plain_loop_never_transposes():
+    model = GPT(arm_config(_deep(4), "A1u2"))
+    calls = []
+    for block in model.blocks:
+        block.register_forward_pre_hook(
+            lambda m, args, kwargs: calls.append(kwargs.get("transposed", False)), with_kwargs=True)
+    model(torch.zeros(1, 8, dtype=torch.long))
+    assert calls == [False] * 4
+
+
+def _pair(a: str, b: str):
+    """Two models with identical stored weights (b gets a's tensors; α stays at init)."""
+    torch.manual_seed(0)
+    ma = GPT(arm_config(_deep(4), a))
+    mb = GPT(arm_config(_deep(4), b))
+    mb.load_state_dict(ma.state_dict(), strict=False)
+    return ma, mb
+
+
+def _logits(model):
+    x = torch.randint(0, SMOKE.vocab_size, (2, 12), generator=torch.Generator().manual_seed(3))
+    return model(x, x)[0]
+
+
+def test_transposed_pass_changes_the_function():
+    plain, t = _pair("A1u2", "A1u2t")
+    assert not torch.allclose(_logits(plain), _logits(t))
+
+
+def test_scaled_equals_transpose_at_init():
+    t, a = _pair("A1u2t", "A1u2a")
+    assert torch.equal(_logits(t), _logits(a))
+
+
+def test_negate_subtracts_each_pass2_update():
+    torch.manual_seed(0)
+    blk = Block(arm_config(_deep(4), "A1u2n"))
+    x = torch.randn(2, 6, D)
+    x1 = x - blk.attn(blk.ln1(x), transposed=True)
+    expected = x1 - blk.mlp(blk.ln2(x1), transposed=True)
+    assert torch.allclose(blk(x, transposed=True), expected, atol=1e-6)
+
+
+@pytest.mark.parametrize("suffix", ["t", "n", "a"])
+def test_gradients_reach_every_stored_matrix(suffix):
+    torch.manual_seed(0)
+    model = GPT(arm_config(_deep(4), f"A1u2{suffix}"))
+    x = torch.randint(0, SMOKE.vocab_size, (2, 12))
+    model(x, x)[1].backward()
+    for name, p in model.blocks.named_parameters():
+        assert p.grad is not None and torch.isfinite(p.grad).all() and p.grad.abs().sum() > 0, name
+
+
+def test_loop_scales_reports_alpha_only_for_scaled():
+    scales = GPT(arm_config(_deep(4), "A1u2a")).loop_scales()
+    assert scales == {"alpha_attn_0": 1.0, "alpha_mlp_0": 1.0, "alpha_attn_1": 1.0, "alpha_mlp_1": 1.0}
+    assert GPT(arm_config(_deep(4), "A1u2t")).loop_scales() == {}
+    assert GPT(arm_config(SMOKE, "A0")).loop_scales() == {}
