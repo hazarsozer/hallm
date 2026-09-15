@@ -36,6 +36,7 @@ why re-investing shared weights into depth pays the saving back in cache.
 | L8-A1u4-s1337 | 77.2 | 8.4 | 268.4 | 90.2% |
 | L8-A1u4-s1338 | 77.2 | 8.4 | 268.4 | 90.2% |
 | L8-A1u4-s1339 | 77.2 | 8.4 | 268.4 | 90.2% |
+| L8-A1u4t-s1337 | 77.2 | 8.4 | 268.4 | 90.2% |
 | L8-A2-s1337 | 77.2 | 8.4 | 268.4 | 90.2% |
 | L8-A2-s1338 | 77.2 | 8.4 | 268.4 | 90.2% |
 | L8-A2-s1339 | 77.2 | 8.4 | 268.4 | 90.2% |
@@ -48,4 +49,4 @@ why re-investing shared weights into depth pays the saving back in cache.
 | L8-A3-s1337 | 55.1 | 8.4 | 268.4 | 86.8% |
 | L9-A2attn-s1337 | 99.2 | 9.4 | 302.0 | 91.3% |
 
-<!-- built 2026-09-15T21:32:33+00:00 from 49 run(s) -->
+<!-- built 2026-09-15T23:39:06+00:00 from 50 run(s) -->

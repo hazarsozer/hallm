@@ -19,14 +19,14 @@ full val-seed headline visible.
 | L16-A1u8 | L8-A0 | iso-storage | SUPPORTED | 2 | SUPPORTED | SUPPORTED | yes |
 | L8-A1u4 | L8-A2 | matched | L8-A1u4 better | 2 | pending (2/3 seeds) | pending (2/3 seeds) | yes |
 | L16-A1u8 | L16-A2 | matched | L16-A1u8 better | 3 | L16-A1u8 better | L16-A1u8 better | yes |
-| L8-A1u4t | L8-A1u4 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
+| L8-A1u4t | L8-A1u4 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
 | L8-A1u4n | L8-A1u4 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
 | L8-A1u4a | L8-A1u4 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
-| L8-A1u4t | L4-A0 | iso-storage | pending | 0 | no test data | no test data | — |
+| L8-A1u4t | L4-A0 | iso-storage | SUPPORTED | 1 | SUPPORTED | NOT SUPPORTED | **NO** |
 | L8-A1u4n | L4-A0 | iso-storage | pending | 0 | no test data | no test data | — |
 | L8-A1u4a | L4-A0 | iso-storage | pending | 0 | no test data | no test data | — |
-| L8-A1u4t | L8-A2 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
+| L8-A1u4t | L8-A2 | matched | pending (1/3 seeds) | 1 | pending (1/3 seeds) | pending (1/3 seeds) | yes |
 | L8-A1u4n | L8-A2 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
 | L8-A1u4a | L8-A2 | matched | pending (0/3 seeds) | 0 | no test data | no test data | — |
 
-<!-- built 2026-09-15T21:32:33+00:00 from 49 run(s) -->
+<!-- built 2026-09-15T23:39:06+00:00 from 50 run(s) -->
