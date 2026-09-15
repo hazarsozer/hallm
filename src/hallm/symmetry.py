@@ -5,6 +5,12 @@ produce the antisymmetric ("rotation-like") part of an update. `rotation_share` 
 that part a trained FFN actually uses: ‖½(J − Jᵀ)‖²_F / ‖J‖²_F at real inputs u, where
 J(u) = W_down · diag(GELU′(W_up·u + b_up)) · W_up. Reference points: 0 for W+Wᵀ, ~0.5 random, 1 pure
 rotation. Computed in float64: for a symmetric J the numerator is a difference of near-equal terms.
+
+The share is basis-dependent (spec 2026-09-15 §5, added after the final code review): it is measured
+w.r.t. u = LN(x), which includes the LayerNorm gain γ. W.r.t. the pre-gain normalized input x̂ (u =
+γ·x̂), the Jacobian is J·diag(γ) — not symmetric for a W+Wᵀ FFN unless γ is uniform. `rotation_share`'s
+optional `in_scale` reports the share in that rescaled basis; `hallm_rotation_shares` and
+`vit_rotation_shares` expose it as `basis="xhat"`.
 """
 
 from __future__ import annotations
@@ -13,6 +19,7 @@ import math
 
 import torch
 
+from hallm.model.gpt import GPT
 from hallm.model.sharing import MLP
 
 
@@ -29,14 +36,21 @@ def antisymmetric_share(J: torch.Tensor) -> torch.Tensor:
 
 @torch.no_grad()
 def rotation_share(w_up: torch.Tensor, w_down: torch.Tensor, u: torch.Tensor,
-                   b_up: torch.Tensor | None = None, chunk: int = 32) -> float:
-    """Mean rotation share over the N inputs. w_up (h, d) maps d→h; w_down (d, h) maps h→d; u (N, d)."""
+                   b_up: torch.Tensor | None = None, chunk: int = 32,
+                   in_scale: torch.Tensor | None = None) -> float:
+    """Mean rotation share over the N inputs. w_up (h, d) maps d→h; w_down (d, h) maps h→d; u (N, d).
+
+    `in_scale` (d,), if given, right-multiplies the Jacobian by diag(in_scale) — i.e. reports the
+    share w.r.t. a rescaled input basis (e.g. u = γ·x̂, so in_scale=γ measures w.r.t. x̂) while the
+    gate pre-activation u @ w_up.T + b_up is left untouched: it is the FFN's real input, not the
+    rescaled one. Implemented as `w_up * in_scale[None, :]` inside the einsum only."""
     w_up, w_down, u = w_up.double(), w_down.double(), u.double()
     pre = u @ w_up.T
     if b_up is not None:
         pre = pre + b_up.double()
     g = gelu_grad(pre)                                                   # (N, h)
-    shares = [antisymmetric_share(torch.einsum("ih,nh,hj->nij", w_down, g[i:i + chunk], w_up))
+    w_up_j = w_up if in_scale is None else w_up * in_scale.double()[None, :]
+    shares = [antisymmetric_share(torch.einsum("ih,nh,hj->nij", w_down, g[i:i + chunk], w_up_j))
               for i in range(0, u.shape[0], chunk)]
     return float(torch.cat(shares).mean())
 
@@ -53,16 +67,31 @@ def effective_ffn_weights(mlp: MLP, transposed: bool) -> tuple[torch.Tensor, tor
 
 
 @torch.no_grad()
-def hallm_rotation_shares(model, idx: torch.Tensor, n_positions: int = 256, seed: int = 0) -> list[float]:
+def hallm_rotation_shares(model: GPT, idx: torch.Tensor, n_positions: int = 256, seed: int = 0,
+                          basis: str = "u") -> list[float]:
     """One rotation share per layer (FFN call, depth order), each over the SAME n_positions of the
     FFN's real inputs (the LN2 outputs), a single subset drawn once (fixed seed) from all B·T
     positions of `idx` — so shares across layers form a paired depth profile. Runs the forward pass
-    in eval mode (dropout etc. off), restoring the model's original training mode afterward."""
-    calls: list[tuple[MLP, torch.Tensor, bool]] = []
-    hooks = [block.mlp.register_forward_pre_hook(
-                 lambda m, args, kwargs: calls.append((m, args[0].detach(), kwargs.get("transposed", False))),
-                 with_kwargs=True)
-             for block in model.blocks]
+    in eval mode (dropout etc. off), restoring the model's original training mode afterward.
+
+    `basis`: "u" (default) measures w.r.t. u = LN2(x), the real FFN input. "xhat" measures w.r.t.
+    the pre-gain normalized input x̂ (u = γ·x̂), passing `in_scale=block.ln2.weight` — the share is
+    basis-dependent (spec 2026-09-15 §5): a W+Wᵀ FFN is exactly symmetric only in the u basis."""
+    if basis not in ("u", "xhat"):
+        raise ValueError(f"basis must be 'u' or 'xhat', got {basis!r}")
+
+    def _read_transposed(args: tuple, kwargs: dict) -> bool:
+        return kwargs.get("transposed", args[1] if len(args) > 1 else False)
+
+    calls: list[tuple[MLP, torch.Tensor, bool, torch.Tensor | None]] = []
+    hooks = []
+    for block in model.blocks:
+        gain = block.ln2.weight if basis == "xhat" else None
+
+        def _hook(m, args, kwargs, gain=gain):
+            calls.append((m, args[0].detach(), _read_transposed(args, kwargs), gain))
+
+        hooks.append(block.mlp.register_forward_pre_hook(_hook, with_kwargs=True))
     was_training = model.training
     model.eval()
     try:
@@ -75,16 +104,16 @@ def hallm_rotation_shares(model, idx: torch.Tensor, n_positions: int = 256, seed
     gen = torch.Generator().manual_seed(seed)
     pick = torch.randperm(n_total, generator=gen)[:n_positions]
     out = []
-    for mlp, x, transposed in calls:
+    for mlp, x, transposed, gain in calls:
         u = x.reshape(-1, x.shape[-1])
         w_up, w_down, b_up = effective_ffn_weights(mlp, transposed)
-        out.append(rotation_share(w_up, w_down, u[pick.to(u.device)], b_up=b_up))
+        out.append(rotation_share(w_up, w_down, u[pick.to(u.device)], b_up=b_up, in_scale=gain))
     return out
 
 
 @torch.no_grad()
 def vit_rotation_shares(vit_model, pixel_values: torch.Tensor, n_positions: int = 256,
-                        seed: int = 0) -> list[float]:
+                        seed: int = 0, basis: str = "u") -> list[float]:
     """Same measure for a Hugging Face ViTModel (DeiT-small loads as one): the FFN input is the
     `layernorm_after` output, i.e. the input of the up projection (W_up, biased); the down projection
     is the second MLP linear. Requires exact GELU so gelu_grad is the right derivative.
@@ -97,9 +126,15 @@ def vit_rotation_shares(vit_model, pixel_values: torch.Tensor, n_positions: int 
 
     Draws ONE position subset shared by every layer (so all ViT layers see the same number of token
     positions, mirroring `hallm_rotation_shares`), and runs the model in eval mode, restoring its
-    original training mode afterward."""
+    original training mode afterward.
+
+    `basis`: "u" (default) measures w.r.t. u = layernorm_after(x), the real FFN input. "xhat"
+    measures w.r.t. the pre-gain normalized input (in_scale=layer.layernorm_after.weight) — see
+    `hallm_rotation_shares` and spec 2026-09-15 §5."""
     if vit_model.config.hidden_act != "gelu":
         raise ValueError(f"expected hidden_act='gelu', got {vit_model.config.hidden_act!r}")
+    if basis not in ("u", "xhat"):
+        raise ValueError(f"basis must be 'u' or 'xhat', got {basis!r}")
     layers = vit_model.layers
     inputs: dict[int, list[torch.Tensor]] = {i: [] for i in range(len(layers))}
     hooks = [layer.mlp.fc1.register_forward_pre_hook(
@@ -120,5 +155,6 @@ def vit_rotation_shares(vit_model, pixel_values: torch.Tensor, n_positions: int 
     for i, layer in enumerate(layers):
         u = torch.cat(inputs[i])
         up, down = layer.mlp.fc1, layer.mlp.fc2
-        out.append(rotation_share(up.weight, down.weight, u[pick.to(u.device)], b_up=up.bias))
+        gain = layer.layernorm_after.weight if basis == "xhat" else None
+        out.append(rotation_share(up.weight, down.weight, u[pick.to(u.device)], b_up=up.bias, in_scale=gain))
     return out
