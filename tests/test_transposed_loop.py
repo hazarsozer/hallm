@@ -189,6 +189,22 @@ def test_negate_subtracts_each_pass2_update():
     assert torch.allclose(blk(x, transposed=True), expected, atol=1e-6)
 
 
+def test_alpha_is_pinned_to_its_own_sublayer():
+    """A single shared α (or one swapped to the wrong sublayer) would still pass
+    `test_scaled_equals_transpose_at_init` (both α start at 1) and `test_loop_scales_reports_alpha_only_for_scaled`
+    (which only checks presence/naming, not which forward use). Distinct, non-default values pin
+    each α to its own sublayer's update."""
+    torch.manual_seed(0)
+    blk = Block(arm_config(_deep(4), "A1u2a"))
+    with torch.no_grad():
+        blk.alpha_attn.fill_(0.5)
+        blk.alpha_mlp.fill_(-2.0)
+    x = torch.randn(2, 6, D)
+    x1 = x + 0.5 * blk.attn(blk.ln1(x), transposed=True)
+    expected = x1 - 2 * blk.mlp(blk.ln2(x1), transposed=True)
+    assert torch.allclose(blk(x, transposed=True), expected, atol=1e-6)
+
+
 @pytest.mark.parametrize("suffix", ["t", "n", "a"])
 def test_gradients_reach_every_stored_matrix(suffix):
     torch.manual_seed(0)
@@ -197,6 +213,40 @@ def test_gradients_reach_every_stored_matrix(suffix):
     model(x, x)[1].backward()
     for name, p in model.blocks.named_parameters():
         assert p.grad is not None and torch.isfinite(p.grad).all() and p.grad.abs().sum() > 0, name
+
+
+def test_gradient_actually_requires_pass_two_not_just_pass_one():
+    """`test_gradients_reach_every_stored_matrix` only asserts grad != 0, which pass 1 alone already
+    guarantees — a `.detach()` on pass 2's weights in the transposed MLP branch would still pass it.
+    This isolates pass 2's marginal contribution to `fc.weight.grad`: same model, same forward
+    values (`.detach()` doesn't change values, only cuts the graph), pass 2's use of the shared
+    matrix detached or not. If sharing.py's transposed MLP branch is itself sabotaged with a
+    `.detach()` (e.g. `self.proj.weight.t().detach()`), `real_forward` below already produces the
+    sabotaged gradient and this test fails (verified manually, then reverted — see the fix report)."""
+    torch.manual_seed(0)
+    model = GPT(arm_config(_deep(2), "A1u1t"))          # L=2: layer 0 plain (W), layer 1 transposed (Wᵀ)
+    x = torch.randint(0, SMOKE.vocab_size, (2, 12))
+    real_forward = MLP.forward
+
+    def sabotaged(self, inp, transposed=False):
+        if transposed:
+            a = F.gelu(F.linear(inp, self.proj.weight.t().detach()))
+            return self.dropout(F.linear(a, self.fc.weight.t().detach()))
+        return real_forward(self, inp, transposed)
+
+    model.zero_grad()
+    model(x, x)[1].backward()
+    grad_real = model.blocks[0].mlp.fc.weight.grad.clone()
+
+    model.zero_grad()
+    MLP.forward = sabotaged
+    try:
+        model(x, x)[1].backward()
+    finally:
+        MLP.forward = real_forward
+    grad_sabotaged = model.blocks[0].mlp.fc.weight.grad.clone()
+
+    assert not torch.allclose(grad_real, grad_sabotaged)
 
 
 def test_loop_scales_reports_alpha_only_for_scaled():
