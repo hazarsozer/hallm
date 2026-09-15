@@ -223,3 +223,15 @@ def test_capability_report_renders_copy_gain_verdicts_in_nats():
                 if l.startswith("| L16-A1u8 | L8-A0 | iso-storage | copy_gain |"))
     # plain nats difference (-0.20), not the accuracy-style ×100 (-20.00)
     assert "| -0.20 |" in line
+
+
+def test_transposed_loop_rows_use_the_hl_rule():
+    rows = []
+    for s, (t, loop) in zip((1337, 1338, 1339), ((27.8, 28.2), (27.9, 28.2), (27.8, 28.2))):
+        rows += [{"run": f"L8-A1u4t-s{s}", "val_ppl": t}, {"run": f"L8-A1u4-s{s}", "val_ppl": loop}]
+    lines = _build_reports().build_iso_storage(rows).splitlines()
+    ht = next(l for l in lines if l.startswith("| L8-A1u4t | L8-A1u4 | matched |"))
+    assert "L8-A1u4t better" in ht and "| 3 |" in ht
+    for a in ("L8-A1u4t", "L8-A1u4n", "L8-A1u4a"):
+        for b in ("L8-A1u4", "L4-A0", "L8-A2"):
+            assert any(l.startswith(f"| {a} | {b} |") for l in lines), (a, b)

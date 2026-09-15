@@ -38,6 +38,16 @@ COMPARISONS = [
     ("L16-A1u8", "L8-A0", "iso-storage"),
     ("L8-A1u4", "L8-A2", "matched"),
     ("L16-A1u8", "L16-A2", "matched"),
+    # transposed loop (spec 2026-09-15 §3, exploratory): H-T vs the plain loop, then the usual pairs
+    ("L8-A1u4t", "L8-A1u4", "matched"),
+    ("L8-A1u4n", "L8-A1u4", "matched"),
+    ("L8-A1u4a", "L8-A1u4", "matched"),
+    ("L8-A1u4t", "L4-A0", "iso-storage"),
+    ("L8-A1u4n", "L4-A0", "iso-storage"),
+    ("L8-A1u4a", "L4-A0", "iso-storage"),
+    ("L8-A1u4t", "L8-A2", "matched"),
+    ("L8-A1u4n", "L8-A2", "matched"),
+    ("L8-A1u4a", "L8-A2", "matched"),
 ]
 
 

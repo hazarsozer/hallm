@@ -148,6 +148,26 @@ def generate_bridge(out_dir: str | Path) -> list[str]:
     return queue
 
 
+# --- Transposed loop (spec 2026-09-15 §2, exploratory) ----------------------------------------
+# Three pass-2 variants of the plain loop L8-A1u4 at identical storage and FLOPs, the pilot recipe
+# verbatim. Seed 1337 only: follow-up seeds are added by a later commit if spec §3's rule fires.
+TRANSPOSED = [("L8", "s30", "A1u4t"), ("L8", "s30", "A1u4n"), ("L8", "s30", "A1u4a")]
+
+
+def generate_transposed(out_dir: str | Path) -> list[str]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[str] = []
+    for rung, shape, arm in TRANSPOSED:
+        name = f"{rung}-{arm}-s1337"
+        spec = {"shape": shape, "arm": arm,
+                "train": {**TRAIN, "seed": 1337, "out_dir": f"runs/ladder/{name}"}}
+        (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+        queue.append(str(out / f"{name}.yaml"))
+    (out / "queue-transposed.txt").write_text("\n".join(queue) + "\n", encoding="utf-8")
+    return queue
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="configs/runs")
@@ -155,7 +175,13 @@ def main() -> None:
                     help="generate the P1 mechanism-decomposition configs + queue-p1.txt instead")
     ap.add_argument("--pilot", action="store_true", help="generate the fixed-storage pilot configs + queue-pilot.txt")
     ap.add_argument("--bridge", action="store_true", help="generate the FineWeb-Edu bridge configs + queue-bridge.txt")
+    ap.add_argument("--transposed", action="store_true",
+                    help="generate the transposed-loop configs + queue-transposed.txt")
     args = ap.parse_args()
+    if args.transposed:
+        queue = generate_transposed(args.out)
+        print(f"wrote {len(queue)} transposed-loop configs to {args.out}/, queue-transposed.txt lists them")
+        return
     if args.bridge:
         queue = generate_bridge(args.out)
         print(f"wrote {len(queue)} bridge configs to {args.out}/, queue-bridge.txt lists them in drain order")
