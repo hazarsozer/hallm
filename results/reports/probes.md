@@ -15,4 +15,4 @@ total inference memory (bf16 weights + KV cache), the axis P4's rule is scored o
 | L8-A2-s1337-lrhalf | A2 | lrhalf | 12.59 | 31.5903 | 77.2 | 85.6 | 345.6 |
 | L8-A2attn-s1337-lr2x | A2attn | lr2x | 20.98 | 27.5449 | 93.9 | 102.3 | 362.4 |
 
-<!-- built 2026-09-15T04:34:24+00:00 from 45 run(s) -->
+<!-- built 2026-09-15T06:41:27+00:00 from 46 run(s) -->
