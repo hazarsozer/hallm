@@ -1300,6 +1300,7 @@ git commit -m "results: FFN Jacobian rotation share — LM unshared checkpoints 
 uv run python scripts/capability_eval.py --checkpoints runs/ladder/L8-A1u4?-s1337/L8-A1u4?-s1337.pt \
   --lambada data/lambada_test.jsonl --blimp data/blimp --data data --probes --out results/capability
 ```
+Re-run Step 4's `ffn_symmetry.py` command with `'runs/ladder/L8-A1u4-s1337/L8-A1u4-s1337.pt' 'runs/ladder/L8-A1u4?-s1337/L8-A1u4?-s1337.pt'` added to `--checkpoints` (spec §5: the transposed-loop FFNs after training; layers 4–7 are measured with their transposed weights), and commit the regenerated JSON and report.
 Apply spec §3's follow-up rule (seed-1337 `val_ppl` ≤ 28.4431 → add seeds 1338/1339 to `TRANSPOSED` in a separate commit), and record the outcome in the wiki (`~/Dev/wiki/projects/hallm.md`, `tasks.md`).
 
 - [ ] **Step 7: Remove the worktree**
