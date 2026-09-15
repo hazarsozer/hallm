@@ -41,34 +41,42 @@ def rotation_share(w_up: torch.Tensor, w_down: torch.Tensor, u: torch.Tensor,
     return float(torch.cat(shares).mean())
 
 
-def effective_ffn_weights(mlp: MLP, transposed: bool) -> tuple[torch.Tensor, torch.Tensor]:
-    """(w_up (h, d), w_down (d, h)) as the FFN actually applies them on this call."""
+def effective_ffn_weights(mlp: MLP, transposed: bool) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    """(w_up (h, d), w_down (d, h), b_up) as the FFN actually applies them on this call. b_up is the
+    up-projection bias — `mlp.up_bias` (shared) or `mlp.fc.bias` (unshared), both None under the
+    default bias=False — and always None on a transposed pass (config forbids bias with loop_pass2)."""
     if mlp.shared:                 # HaLViT: up = W, down = Wᵀ
-        return mlp.w, mlp.w.t()
-    if transposed:                 # transposed loop pass 2: up = W_downᵀ, down = W_upᵀ
-        return mlp.proj.weight.t(), mlp.fc.weight.t()
-    return mlp.fc.weight, mlp.proj.weight
+        return mlp.w, mlp.w.t(), mlp.up_bias
+    if transposed:                 # transposed loop pass 2: up = W_downᵀ, down = W_upᵀ, no bias
+        return mlp.proj.weight.t(), mlp.fc.weight.t(), None
+    return mlp.fc.weight, mlp.proj.weight, mlp.fc.bias
 
 
 @torch.no_grad()
 def hallm_rotation_shares(model, idx: torch.Tensor, n_positions: int = 256, seed: int = 0) -> list[float]:
-    """One rotation share per layer (FFN call, depth order), each over n_positions of the FFN's real
-    inputs (the LN2 outputs), subsampled with a fixed seed from all B·T positions of `idx`."""
+    """One rotation share per layer (FFN call, depth order), each over the SAME n_positions of the
+    FFN's real inputs (the LN2 outputs), a single subset drawn once (fixed seed) from all B·T
+    positions of `idx` — so shares across layers form a paired depth profile. Runs the forward pass
+    in eval mode (dropout etc. off), restoring the model's original training mode afterward."""
     calls: list[tuple[MLP, torch.Tensor, bool]] = []
     hooks = [block.mlp.register_forward_pre_hook(
                  lambda m, args, kwargs: calls.append((m, args[0].detach(), kwargs.get("transposed", False))),
                  with_kwargs=True)
              for block in model.blocks]
+    was_training = model.training
+    model.eval()
     try:
         model(idx)
     finally:
         for h in hooks:
             h.remove()
+        model.train(was_training)
+    n_total = calls[0][1].reshape(-1, calls[0][1].shape[-1]).shape[0]
     gen = torch.Generator().manual_seed(seed)
+    pick = torch.randperm(n_total, generator=gen)[:n_positions]
     out = []
     for mlp, x, transposed in calls:
         u = x.reshape(-1, x.shape[-1])
-        pick = torch.randperm(u.shape[0], generator=gen)[:n_positions].to(u.device)
-        w_up, w_down = effective_ffn_weights(mlp, transposed)
-        out.append(rotation_share(w_up, w_down, u[pick]))
+        w_up, w_down, b_up = effective_ffn_weights(mlp, transposed)
+        out.append(rotation_share(w_up, w_down, u[pick.to(u.device)], b_up=b_up))
     return out

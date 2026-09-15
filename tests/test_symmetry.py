@@ -67,7 +67,39 @@ def test_collector_gives_zero_for_a_w_plus_wt_model():
 def test_collector_uses_transposed_weights_on_pass_two():
     model = GPT(arm_config(SMOKE, "A1u1t")).eval()          # L=2: layer 0 W, layer 1 Wᵀ
     mlp = model.blocks[0].mlp
-    up, down = effective_ffn_weights(mlp, transposed=True)
-    assert torch.equal(up, mlp.proj.weight.t()) and torch.equal(down, mlp.fc.weight.t())
+    up, down, b_up = effective_ffn_weights(mlp, transposed=True)
+    assert torch.equal(up, mlp.proj.weight.t()) and torch.equal(down, mlp.fc.weight.t()) and b_up is None
     shares = hallm_rotation_shares(model, torch.randint(0, SMOKE.vocab_size, (2, 10)), n_positions=20)
     assert len(shares) == 2
+
+
+def test_hallm_shares_match_autograd_jacobian_oracle():
+    """Oracle check against torch.autograd.functional.jacobian: pins the w_up/w_down orientation
+    inside rotation_share (gating with u @ w_down instead of u @ w_up.T would fail this) and the
+    transposed flag threaded through the collector's hook (hard-coding transposed=False would fail
+    the A1u1t layer-1 case)."""
+    torch.manual_seed(0)
+    for arm in ("A0", "A1u1t"):
+        model = GPT(arm_config(SMOKE, arm)).double().eval()
+        with torch.no_grad():
+            for p in model.parameters():
+                if p.dim() == 2:
+                    p.mul_(20.0)                    # push GELU gates away from ~0.5
+        idx = torch.randint(0, SMOKE.vocab_size, (2, 10))
+        n_pos = 2 * 10                              # = B*T: every position, matching the collector
+        shares = hallm_rotation_shares(model, idx, n_positions=n_pos)
+        calls: list[tuple[torch.nn.Module, torch.Tensor, bool]] = []
+        hooks = [block.mlp.register_forward_pre_hook(
+                     lambda m, args, kwargs: calls.append((m, args[0].detach(), kwargs.get("transposed", False))),
+                     with_kwargs=True)
+                 for block in model.blocks]
+        with torch.no_grad():
+            model(idx)
+        for h in hooks:
+            h.remove()
+        for layer, (mlp, x, tr) in enumerate(calls):
+            u = x.reshape(-1, x.shape[-1])
+            jac = torch.stack([torch.autograd.functional.jacobian(
+                lambda v: mlp(v, transposed=tr), u[i]) for i in range(u.shape[0])])
+            oracle = float(antisymmetric_share(jac).mean())
+            assert abs(shares[layer] - oracle) < 1e-9
