@@ -24,6 +24,8 @@ wiki/.obsidian/workspace-mobile.json
 /runs/
 data/*.bin
 data/fineweb/*.bin
+data/lambada_test.jsonl
+data/blimp/
 *.pt
 .pytest_cache/
 .loop/uv_sync.log
