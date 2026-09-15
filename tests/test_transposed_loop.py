@@ -7,12 +7,15 @@ import dataclasses
 
 import pytest
 import torch
+import torch.nn.functional as F
 
 import prepatch_fixture
 from hallm.model import GPT, SHAPES, arm_config
 from hallm.model.config import ModelConfig
+from hallm.model.sharing import MLP, CausalSelfAttention
 
 SMOKE = SHAPES["smoke"]
+D = SMOKE.n_embd
 
 
 def _deep(L: int) -> ModelConfig:
@@ -77,3 +80,41 @@ def test_pre_amendment_config_still_loads():
     d = dataclasses.asdict(SMOKE)
     d.pop("loop_pass2")
     assert ModelConfig(**d).loop_pass2 is None
+
+
+def test_transposed_mlp_matches_manual():
+    torch.manual_seed(0)
+    mlp = MLP(SMOKE)
+    x = torch.randn(2, 5, D)
+    expected = F.gelu(x @ mlp.proj.weight) @ mlp.fc.weight   # up = W_downᵀ, down = W_upᵀ
+    assert torch.allclose(mlp(x, transposed=True), expected, atol=1e-6)
+
+
+def test_untransposed_mlp_unchanged():
+    torch.manual_seed(0)
+    mlp = MLP(SMOKE)
+    x = torch.randn(2, 5, D)
+    assert torch.equal(mlp(x), mlp(x, transposed=False))
+
+
+def test_transposed_attention_matches_manual():
+    torch.manual_seed(0)
+    attn = CausalSelfAttention(SMOKE)
+    x = torch.randn(2, 5, D)
+    B, T, C, H = 2, 5, D, SMOKE.n_head
+
+    def heads(t):
+        return t.view(B, T, H, C // H).transpose(1, 2)
+
+    q, k, v = (heads(x @ lin.weight) for lin in (attn.q, attn.k, attn.v))   # x @ W = F.linear(x, Wᵀ)
+    y = F.scaled_dot_product_attention(q, k, v, is_causal=True).transpose(1, 2).reshape(B, T, C)
+    expected = y @ attn.proj.weight
+    assert torch.allclose(attn(x, transposed=True), expected, atol=1e-6)
+
+
+def test_transposed_path_rejects_halvit_sublayers():
+    x = torch.randn(1, 3, D)
+    with pytest.raises(ValueError):
+        MLP(dataclasses.replace(SMOKE, share_intra_ffn=True))(x, transposed=True)
+    with pytest.raises(ValueError):
+        CausalSelfAttention(dataclasses.replace(SMOKE, share_intra_attn=True))(x, transposed=True)
