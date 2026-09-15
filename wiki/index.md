@@ -25,6 +25,7 @@ complete 58-source wiki remains in the main research workspace.
 - [[analyses/pruning-composability-with-weight-sharing]] — pruning-composability-with-weight-sharing
 - [[analyses/quantization-tradeoffs-1to4bit]] — quantization-tradeoffs-1to4bit
 - [[analyses/thesis-options-2026-05]] — thesis-options-2026-05
+- [[analyses/transposed-loop-literature-2026-09]] — transposed-loop-literature-2026-09
 - [[analyses/wplusw-lm-review-2026-08]] — wplusw-lm-review-2026-08
 
 ## Sources
