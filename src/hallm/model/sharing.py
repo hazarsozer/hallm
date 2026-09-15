@@ -50,7 +50,15 @@ class MLP(nn.Module):
             self.fc = nn.Linear(d, h, bias=cfg.bias)    # W1: d→h
             self.proj = nn.Linear(h, d, bias=cfg.bias)  # W2: h→d
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, transposed: bool = False) -> torch.Tensor:
+        if transposed:
+            # Transposed loop (spec 2026-09-15 §2): the SAME two tensors in swapped, transposed roles —
+            # up = W_downᵀ (d→h), down = W_upᵀ (h→d). No copy, no new parameter.
+            if self.shared:
+                raise ValueError("transposed pass is defined for unshared FFNs only")
+            a = F.gelu(F.linear(x, self.proj.weight.t()))   # x @ W_down: (..., d) → (..., h)
+            y = F.linear(a, self.fc.weight.t())             # a @ W_up:   (..., h) → (..., d)
+            return self.dropout(y)
         if self.shared:
             a = F.gelu(F.linear(x, self.w, self.up_bias))      # up:   x @ Wᵀ  → (..., h)
             y = F.linear(a, self.w.t(), self.down_bias)        # down: a @ W   → (..., d)  (Wᵀ applied)
@@ -92,7 +100,9 @@ class CausalSelfAttention(nn.Module):
             self.v = nn.Linear(d, d, bias=cfg.bias)
             self.proj = nn.Linear(d, d, bias=cfg.bias)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, transposed: bool = False) -> torch.Tensor:
+        if transposed and self.shared:
+            raise ValueError("transposed pass is defined for unshared attention only")
         B, T, C = x.shape
         if self.shared:
             qb = self.qkv_bias[:C] if self.qkv_bias is not None else None
@@ -101,6 +111,11 @@ class CausalSelfAttention(nn.Module):
             q = F.linear(x, self.w_q, qb)        # Q   = W_q · x
             k = F.linear(x, self.w_kv, kb)       # K   = W_kv · x
             v = F.linear(x, self.w_kv.t(), vb)   # V   = W_kvᵀ · x   (same tensor, transposed)
+        elif transposed:
+            # Transposed loop (spec 2026-09-15 §2): each projection uses its own weight transposed.
+            q = F.linear(x, self.q.weight.t())
+            k = F.linear(x, self.k.weight.t())
+            v = F.linear(x, self.v.weight.t())
         else:
             q, k, v = self.q(x), self.k(x), self.v(x)
 
@@ -116,6 +131,8 @@ class CausalSelfAttention(nn.Module):
 
         if self.shared:
             y = F.linear(y, self.w_q.t(), self.out_bias)   # Out = W_qᵀ · ŷ
+        elif transposed:
+            y = F.linear(y, self.proj.weight.t())
         else:
             y = self.proj(y)
         return self.resid_drop(y)

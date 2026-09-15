@@ -12,6 +12,10 @@ dependencies = [
 ]
 
 [dependency-groups]
+analysis = [
+    "pillow>=12.3.0",
+    "transformers>=5.17.0",
+]
 data = [
     "huggingface-hub>=1.31.0",
     "pyarrow>=25.0.1",

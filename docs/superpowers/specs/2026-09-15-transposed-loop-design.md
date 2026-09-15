@@ -109,6 +109,12 @@ Averaged over 256 real input positions per layer, per layer and per model. Refer
 for a W+Wᵀ layer (exact), ~0.5 for random matrices, 1 for a purely antisymmetric J. Biases shift
 the pre-activation only, so DeiT's biased FFN is handled by the same formula.
 
+> **Added 2026-09-15, after the final code review, before any measurement was run.** The share is
+> basis-dependent: it is measured w.r.t. u = LN(x), which includes the LayerNorm gain γ. W.r.t. the
+> pre-gain normalized input x̂ (u = γ·x̂), the Jacobian is J·diag(γ) — for a W+Wᵀ FFN this is not
+> symmetric unless γ is uniform. So a W+Wᵀ layer gives exactly 0 only in the u basis; both the u and
+> the x̂ basis (γ folded in) are reported.
+
 **Models.**
 - LM: unshared `L4-A0`, `L8-A0` and `L16-A0` at every seed with a checkpoint; inputs are WikiText-103
   validation positions.
@@ -128,7 +134,8 @@ the transposed-loop FFNs after training (§6 predicts the rotation part matters)
 With M the change one pass makes, M = S + A (symmetric + antisymmetric):
 plain loop ≈ I + 2M, transposed ≈ I + 2S (A cancels), negated ≈ I + 2A (S cancels). The argument
 is first order and ignores that GELU gates differ between passes; attention does not follow it
-cleanly. Predictions:
+cleanly. It also ignores the LayerNorm gain (§5): S and A are the symmetric/antisymmetric parts of
+J in the u basis, not of the gain-scaled J·diag(γ). Predictions:
 
 1. `t` is worse than the plain loop on `val_ppl`.
 2. `n` is better than `t`.

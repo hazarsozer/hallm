@@ -171,3 +171,31 @@ def test_generate_bridge_is_the_iso_storage_pair_on_fineweb(tmp_path):
         assert (mc.n_layer, mc.arm, tc.dataset, tc.seed) == (depth, arm, "fineweb-edu", 1337)
         for field in ("lr", "min_lr", "warmup_steps", "max_steps", "batch_size", "grad_accum", "dtype"):
             assert getattr(tc, field) == getattr(baseline, field), (name, field)
+
+
+# --- Transposed loop (spec 2026-09-15 §2) ----------------------------------------------------
+
+def test_generate_transposed_order_and_flags(tmp_path):
+    from scripts.gen_ladder_configs import generate_transposed
+
+    queue = generate_transposed(tmp_path)
+    assert [p.split("/")[-1] for p in queue] == [
+        "L8-A1u4t-s1337.yaml", "L8-A1u4n-s1337.yaml", "L8-A1u4a-s1337.yaml"]
+    assert (tmp_path / "queue-transposed.txt").read_text().splitlines() == queue
+    for suffix, mode in (("t", "transpose"), ("n", "negate"), ("a", "scaled")):
+        mc, tc = load_experiment(tmp_path / f"L8-A1u4{suffix}-s1337.yaml")
+        assert (mc.n_layer, mc.n_unique_blocks, mc.loop_pass2, mc.arm, tc.seed) == \
+            (8, 4, mode, f"A1u4{suffix}", 1337)
+
+
+def test_transposed_recipe_matches_the_plain_loop_run(tmp_path):
+    """Everything but the run directory equals the completed L8-A1u4-s1337 run's config."""
+    import dataclasses as dc
+
+    from scripts.gen_ladder_configs import generate_transposed
+
+    generate_transposed(tmp_path)
+    _, loop = load_experiment("configs/runs/L8-A1u4-s1337.yaml")
+    for suffix in "tna":
+        _, tc = load_experiment(tmp_path / f"L8-A1u4{suffix}-s1337.yaml")
+        assert dc.replace(tc, out_dir=loop.out_dir) == loop, suffix

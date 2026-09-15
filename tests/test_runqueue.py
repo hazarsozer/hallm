@@ -190,3 +190,23 @@ def test_metrics_jsonl_survives_resume_without_truncation(tmp_path):
     run_one(cfgs[0], data_dir, device="cpu")
     second = len([x for x in (out / "metrics.jsonl").read_text().splitlines() if x.strip()])
     assert second > first, "metrics trail was truncated on resume"
+
+
+def test_scaled_transposed_loop_logs_alpha(tmp_path):
+    data_dir, _, _ = _setup(tmp_path)
+    name = "smoke-A1u1a-s7"
+    cfg = tmp_path / f"{name}.yaml"
+    cfg.write_text(yaml.safe_dump({"shape": "smoke", "arm": "A1u1a",
+                                   "train": {**SMOKE_TRAIN, "out_dir": str(tmp_path / "runs" / name)}}))
+    row = run_one(cfg, data_dir, device="cpu")
+    recs = [json.loads(x) for x in (tmp_path / "runs" / name / "metrics.jsonl").read_text().splitlines()]
+    assert all("alpha_attn_0" in r and "alpha_mlp_0" in r for r in recs)
+    assert "alpha_attn_0" in row and "alpha_mlp_0" in row
+
+
+def test_other_arms_log_no_alpha(tmp_path):
+    data_dir, cfgs, _ = _setup(tmp_path)
+    row = run_one(cfgs[0], data_dir, device="cpu")
+    recs = [json.loads(x) for x in (tmp_path / "runs" / "smoke-A0-s7" / "metrics.jsonl").read_text().splitlines()]
+    assert not any(k.startswith("alpha_") for r in recs for k in r)
+    assert not any(k.startswith("alpha_") for k in row)

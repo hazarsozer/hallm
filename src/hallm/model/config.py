@@ -18,6 +18,11 @@ import re
 from dataclasses import dataclass, replace
 
 
+# Transposed loop (spec 2026-09-15): how a looped arm's odd passes add their transposed update.
+# Value → run-ID suffix: A1u<k>t / A1u<k>n / A1u<k>a.
+LOOP_PASS2 = {"transpose": "t", "negate": "n", "scaled": "a"}
+
+
 @dataclass(frozen=True)
 class ModelConfig:
     """Architecture + sharing configuration for one model arm.
@@ -45,6 +50,7 @@ class ModelConfig:
     share_intra_ffn: bool = False     # A2/A3 — FFN W2 = W1ᵀ (HaLViT, width)
     share_intra_attn: bool = False    # A2/A3 — V = K-path transpose, O = Q-path transpose (HaLViT)
     sharing_warmup_steps: int = 0     # R3 — enforce intra-layer ties only after N steps (0 = always)
+    loop_pass2: str | None = None     # transposed loop: odd passes use Wᵀ ("transpose"|"negate"|"scaled")
 
     def __post_init__(self) -> None:
         if self.n_embd % self.n_head != 0:
@@ -57,6 +63,15 @@ class ModelConfig:
             k = self.n_unique_blocks
             if not 1 <= k <= self.n_layer or self.n_layer % k:
                 raise ValueError(f"n_unique_blocks ({k}) must divide n_layer ({self.n_layer})")
+        if self.loop_pass2 is not None:
+            if self.loop_pass2 not in LOOP_PASS2:
+                raise ValueError(f"loop_pass2 must be one of {sorted(LOOP_PASS2)}, got {self.loop_pass2!r}")
+            if self.n_unique_blocks is None:
+                raise ValueError("loop_pass2 requires a looped arm (n_unique_blocks set)")
+            if self.share_intra_ffn or self.share_intra_attn:
+                raise ValueError("loop_pass2 cannot be combined with intra-layer (W+Wᵀ) sharing")
+            if self.bias:
+                raise ValueError("loop_pass2 assumes bias=False (the transposed pass has no bias)")
 
     @property
     def head_dim(self) -> int:
@@ -69,6 +84,8 @@ class ModelConfig:
     @property
     def arm(self) -> str:
         """Canonical arm tag derived from the sharing flags (A0/A1/A2/A3 or an ablation label)."""
+        if self.loop_pass2 is not None:
+            return f"A1u{self.n_unique_blocks}{LOOP_PASS2[self.loop_pass2]}"
         if self.n_unique_blocks not in (None, 1):
             intra = self.share_intra_ffn or self.share_intra_attn
             return "custom" if intra else f"A1u{self.n_unique_blocks}"
@@ -95,21 +112,25 @@ ARMS: dict[str, dict[str, bool]] = {
 }
 
 
-_LOOPED = re.compile(r"A1u(\d+)")
+_LOOPED = re.compile(r"A1u(\d+)([tna]?)")
+_PASS2_FOR_SUFFIX = {suffix: mode for mode, suffix in LOOP_PASS2.items()}
 
 
 def arm_config(base: ModelConfig, arm: str) -> ModelConfig:
     """Return a copy of ``base`` with the sharing flags set for the named ``arm``.
 
     ``A1u<k>`` is the looped arm (spec 2026-09-14 §2): A1's cross-layer flag with k distinct blocks
-    cycled to depth L. The shape (vocab/block/embd/layer/head/ffn) is preserved exactly.
+    cycled to depth L. ``A1u<k>t|n|a`` is the transposed loop (spec 2026-09-15 §2): odd passes use the
+    blocks' transposed weights, added, subtracted or scaled by a learned α. The shape
+    (vocab/block/embd/layer/head/ffn) is preserved exactly.
     """
     m = _LOOPED.fullmatch(arm)
     if m:
-        return replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)))
+        return replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)),
+                       loop_pass2=_PASS2_FOR_SUFFIX.get(m.group(2)))
     if arm not in ARMS:
-        raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)} or A1u<k>")
-    return replace(base, **ARMS[arm], n_unique_blocks=None)
+        raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)} or A1u<k>[t|n|a]")
+    return replace(base, **ARMS[arm], n_unique_blocks=None, loop_pass2=None)
 
 
 # --- candidate shapes (roadmap/03-architecture.md §1); pick the size in Term 2 after a pilot ---

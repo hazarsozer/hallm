@@ -13,7 +13,7 @@ from hallm.model import GPT, SHAPES, arm_config
 from hallm.train import configure_optimizer
 
 SMOKE = SHAPES["smoke"]
-ARMS = ["A0", "A1", "A2", "A3"]
+ARMS = ["A0", "A1", "A2", "A3", "A1u1t", "A1u1n", "A1u1a"]   # A1u1<x>: layer 0 W, layer 1 Wᵀ (L=2)
 
 
 @pytest.mark.parametrize("arm", ARMS)

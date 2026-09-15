@@ -26,6 +26,8 @@ data/*.bin
 data/fineweb/*.bin
 data/lambada_test.jsonl
 data/blimp/
+data/imagenette2-160/
+data/imagenette2-160.tgz
 *.pt
 .pytest_cache/
 .loop/uv_sync.log

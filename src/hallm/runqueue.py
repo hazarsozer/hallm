@@ -115,6 +115,7 @@ def run_one(cfg_path: str | Path, data_dir: str | Path, device: str, stop_step: 
         row["test_split_sha256"] = file_sha256(test_bin)
     row["run"] = name
     row["dataset"] = train_cfg.dataset
+    row.update(model.loop_scales())   # transposed loop `a` variant: final α per sublayer (else empty)
     # Measured memory + the train/val endpoints, so the generalisation gap is recoverable later
     # without re-reading a log that may not survive the session (spec P0 items 1, 3, 4).
     row.update(memory_row(model, model_cfg))
