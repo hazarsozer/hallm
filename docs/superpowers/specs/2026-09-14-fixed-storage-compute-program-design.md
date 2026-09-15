@@ -103,6 +103,9 @@ Design II deliverables appear on Ninova.
 Every comparison row already exists on the other side (`L4-A0`, `L8-A0`, `L8-A2`, `L16-A2`, `L16-A0`
 all at 3 seeds). Extra A2attn seeds only if a seed-1337 point lands within 1% of `L8-A0`.
 
+> **Trigger fired 2026-09-15:** `L10-A2attn-s1337` landed at +0.05% vs `L8-A0` (within 1%), so
+> seeds 1338/1339 of `L10-A2attn` were added to the pilot queue. `L9-A2attn` (+1.81%) stays at one seed.
+
 Structural note to record: A2attn saves only 16.7% per layer, so at iso-storage it can buy at most
 ~20% extra depth; full A2 buys 2×; looping buys any multiple. The kinds differ in *how much* compute
 they can buy, not only in how well they spend it.

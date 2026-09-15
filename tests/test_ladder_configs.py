@@ -119,7 +119,8 @@ def test_generate_pilot_order_and_flags(tmp_path):
     order = [p.split("/")[-1] for p in queue]
     assert order == [
         "L8-A1u4-s1337.yaml", "L16-A1u8-s1337.yaml", "L9-A2attn-s1337.yaml", "L10-A2attn-s1337.yaml",
-        "L8-A1u4-s1338.yaml", "L16-A1u8-s1338.yaml", "L8-A1u4-s1339.yaml", "L16-A1u8-s1339.yaml",
+        "L8-A1u4-s1338.yaml", "L16-A1u8-s1338.yaml", "L10-A2attn-s1338.yaml",
+        "L8-A1u4-s1339.yaml", "L16-A1u8-s1339.yaml", "L10-A2attn-s1339.yaml",
     ]
     assert (tmp_path / "queue-pilot.txt").read_text().splitlines() == queue
     mc, tc = load_experiment(tmp_path / "L16-A1u8-s1338.yaml")

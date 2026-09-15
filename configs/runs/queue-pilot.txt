@@ -4,5 +4,7 @@ configs/runs/L9-A2attn-s1337.yaml
 configs/runs/L10-A2attn-s1337.yaml
 configs/runs/L8-A1u4-s1338.yaml
 configs/runs/L16-A1u8-s1338.yaml
+configs/runs/L10-A2attn-s1338.yaml
 configs/runs/L8-A1u4-s1339.yaml
 configs/runs/L16-A1u8-s1339.yaml
+configs/runs/L10-A2attn-s1339.yaml

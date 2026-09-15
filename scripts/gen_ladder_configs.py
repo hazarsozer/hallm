@@ -103,7 +103,9 @@ PILOT = [  # (rung, shape, run-ID arm tag, seeds)
     ("L8", "s30", "A1u4", [1337, 1338, 1339]),     # vs L8-A2 (matched) and L4-A0 (iso-storage)
     ("L16", "s30x2", "A1u8", [1337, 1338, 1339]),  # vs L16-A2 (matched) and L8-A0 (iso-storage)
     ("L9", "s30l9", "A2attn", [1337]),             # vs L8-A0 (iso-storage, −6%)
-    ("L10", "s30l10", "A2attn", [1337]),           # vs L8-A0 (iso-storage, +4%)
+    # vs L8-A0 (iso-storage, +4%). Seeds 1338/1339 added 2026-09-15: seed 1337 landed within 1% of
+    # L8-A0 (+0.05%), the §4.1 trigger for extra A2attn seeds.
+    ("L10", "s30l10", "A2attn", [1337, 1338, 1339]),
 ]
 ARM_FOR_TAG = {"A2attn": "A2-attn"}  # run-ID tags carry no hyphen; ARMS keys do
 
