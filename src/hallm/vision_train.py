@@ -3,6 +3,12 @@
 A sibling of `train.py`, not a replacement: the LM loop is mid-campaign and token-batch specific.
 Everything that defines the recipe — optimizer, schedule, seeding, resume format, metrics file — is
 imported from `train.py` so the two domains cannot silently drift apart.
+
+One deliberate divergence from `train.py`'s checkpoint condition: this loop also saves a resume
+checkpoint on natural completion (`done == train_cfg.max_steps`), which `train.py` does not. That
+guarantees a completed run always leaves a checkpoint at its final step even when
+`checkpoint_interval` doesn't divide `max_steps` evenly; harmless otherwise. Noted here so the
+difference is visible rather than accidental.
 """
 
 from __future__ import annotations

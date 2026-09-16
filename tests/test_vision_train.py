@@ -1,7 +1,8 @@
 import numpy as np
 import torch
-from hallm.model.config import VisionConfig, arm_config
+from hallm.model.config import VisionConfig
 from hallm.model.vit import ViT
+from hallm.train import set_seed
 from hallm.vision_train import VisionTrainConfig, evaluate_top1, train_vision
 
 
@@ -23,6 +24,7 @@ def test_defaults_match_the_spec_recipe():
     cfg = VisionTrainConfig()
     assert (cfg.crop_size, cfg.label_smoothing, cfg.dataset) == (112, 0.1, "imagenet-100")
     assert (cfg.warmup_steps, cfg.max_steps, cfg.lr) == (200, 50_000, 6e-4)
+    assert cfg.block_size == 50    # controller decision 1: NOT the inherited LM default of 512
 
 
 def test_training_reduces_loss_on_a_learnable_toy_set(tmp_path):
@@ -67,6 +69,37 @@ def test_resume_continues_from_the_checkpoint(tmp_path):
     second = train_vision(ViT(tiny_cfg()), cfg, images, labels, device="cpu",
                           resume_path=str(resume))
     assert second[0]["step"] == 5 and second[-1]["step"] == 9
+
+
+def test_resume_equals_unbroken_run(tmp_path):
+    """The resume path must reproduce a bit-identical run, not just the right step count — a step
+    count alone can pass even if `gen`/RNG/optimizer state were silently dropped on resume. Mirrors
+    tests/test_resume.py's `test_resume_equals_unbroken_run` (same structure, same tolerance: exact
+    tensor equality, not approx)."""
+    images, labels = fake_data()
+    cfg = VisionTrainConfig(max_steps=8, warmup_steps=2, batch_size=4, crop_size=32,
+                            checkpoint_interval=4, log_interval=1, eval_interval=0,
+                            dtype="float32", deterministic=True)
+
+    def fresh_model():
+        set_seed(cfg.seed, cfg.deterministic)
+        return ViT(tiny_cfg())
+
+    # unbroken 8-step run
+    m_full = fresh_model()
+    train_vision(m_full, cfg, images, labels, device="cpu")
+
+    # same run interrupted at step 4, then resumed by a FRESH model object
+    resume = tmp_path / "resume.pt"
+    m_a = fresh_model()
+    train_vision(m_a, cfg, images, labels, device="cpu", resume_path=str(resume), stop_step=4)
+    m_b = ViT(tiny_cfg())  # arbitrary init — resume must overwrite it entirely
+    train_vision(m_b, cfg, images, labels, device="cpu", resume_path=str(resume))
+
+    sd_full, sd_res = m_full.state_dict(), m_b.state_dict()
+    assert sd_full.keys() == sd_res.keys()
+    for k in sd_full:
+        assert torch.equal(sd_full[k], sd_res[k]), f"param {k} diverged after resume"
 
 
 def test_metrics_file_records_top1(tmp_path):
