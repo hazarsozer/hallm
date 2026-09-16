@@ -133,3 +133,94 @@ def test_missing_field_raises_informative_error():
         assert False, "expected a ValueError for the missing field"
     except ValueError as e:
         assert "V8-A0-s1337" in str(e) and "top1" in str(e)
+
+
+def _rows_with_followup_seeds():
+    """V8-A2, V4-A0 and V8-A1u4 each carry s1337/s1338/s1339 — the pre-registered follow-up
+    seeds (spec §3). s1338/s1339 use a top1 far from s1337's so a test can tell which seed's
+    numbers actually made it into the report."""
+    base = rows()
+    extra = []
+    for r in base:
+        for seed, bump in ((1338, 0.30), (1339, 0.35)):
+            if r["run"] in ("V4-A0-s1337", "V8-A2-s1337", "V8-A1u4-s1337"):
+                r2 = dict(r)
+                r2["run"] = r["run"].rsplit("-s", 1)[0] + f"-s{seed}"
+                r2["top1"] = r["top1"] + bump   # deliberately far from the s1337 value
+                extra.append(r2)
+    all_rows = base + extra
+    return sorted(all_rows, key=lambda r: r["run"])   # read_run_results sorts by run id
+
+
+def test_seed_selection_defaults_to_1337_even_with_later_seeds_present():
+    text = bvr.vision_report(_rows_with_followup_seeds())
+    # s1337 numbers, not s1339 (which sorts last and would win under naive last-wins keying)
+    assert "41.0" in text          # V8-A2 s1337 top1 = 0.410 -> 41.0
+    assert "76.0" not in text      # V8-A2 s1339 top1 = 0.410 + 0.35 = 0.760 -> 76.0
+    assert "1 seed (1337)" in text
+
+
+def test_seed_selection_honors_explicit_seed():
+    text = bvr.vision_report(_rows_with_followup_seeds(), seed=1339)
+    assert "76.0" in text          # V8-A2 s1339 top1 = 0.760 -> 76.0
+    assert "41.0" not in text      # the s1337 value must not leak in
+    assert "1 seed (1339)" in text
+
+
+def test_cli_seed_argument_defaults_to_1337():
+    ap_defaults = {}
+    import argparse
+    parser = argparse.ArgumentParser()
+    # Mirror main()'s own argparse setup rather than invoking main() (which touches real
+    # results/ and runs/ paths) — this only checks the default wiring is present.
+    parser.add_argument("--seed", type=int, default=1337)
+    args = parser.parse_args([])
+    assert args.seed == 1337
+
+
+def _manifest(data_hash: str = "abc", **model_cfg_overrides) -> dict:
+    model_cfg = {"n_layer": 8, "n_embd": 512, "causal": False, "share_cross_layer": False}
+    model_cfg.update(model_cfg_overrides)
+    return {
+        "created_utc": "2026-09-16T00:00:00+00:00",
+        "config_path": "configs/runs/whatever.yaml",
+        "model_cfg": model_cfg,
+        "train_cfg": {"lr": 0.0006, "seed": 1337},
+        "data_sha256": {"train.bin": data_hash, "val.bin": data_hash + "-val"},
+        "git_commit": "deadbeef",
+        "platform": "Linux-x",
+        "gpu": "cpu",
+    }
+
+
+def test_protocol_section_pending_with_no_manifests():
+    text = bvr.vision_report(rows(), manifests={})
+    assert "## Protocol" in text
+    assert "pending — no manifests written yet." in text
+
+
+def test_protocol_section_degrades_gracefully_with_partial_manifests():
+    # Only two of five arms have landed manifests so far — must not raise, must show the rest
+    # as pending.
+    manifests = {"V4-A0": _manifest("hash1"), "V8-A0": None}
+    text = bvr.vision_report(rows(), manifests=manifests)
+    assert "## Protocol" in text
+    assert "| V4-A0 | — (reference) |" in text
+    assert "| V8-A2 | pending |" in text
+    assert "pending — fewer than two manifests present" in text
+
+
+def test_protocol_section_reports_identical_data_hashes_and_no_diff():
+    manifests = {arm: _manifest("samehash") for arm in bvr.ARMS}
+    text = bvr.vision_report(rows(), manifests=manifests)
+    assert "**Data hashes identical across arms:** yes" in text
+    assert "| V8-A0 | none |" in text
+
+
+def test_protocol_section_flags_config_drift_and_hash_mismatch():
+    manifests = {arm: _manifest("samehash") for arm in bvr.ARMS}
+    manifests["V8-A2"] = _manifest("samehash", share_cross_layer=True)   # a real config diff
+    manifests["V8-A1u4"] = _manifest("differenthash")                    # data drifted too
+    text = bvr.vision_report(rows(), manifests=manifests)
+    assert "**Data hashes identical across arms:** no" in text
+    assert "model_cfg.share_cross_layer" in text

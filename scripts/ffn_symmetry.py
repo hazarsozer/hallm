@@ -14,7 +14,7 @@ Usage:
   uv run --group analysis python scripts/ffn_symmetry.py \
       --checkpoints 'runs/ladder/L*-A0-s13??/*-s13??.pt' 'runs/ladder/L8-A2-s1337/*.pt' \
       --data data --deit --images data/imagenette2-160/val \
-      --hallm-vit 'runs/vision/v8-*/*.pt' --vit-data data/in100
+      --hallm-vit 'runs/vision/V*-s1337/*.pt' --vit-data data/in100
 """
 
 from __future__ import annotations
@@ -82,16 +82,32 @@ def deit_row(images_dir: str, n_images: int, n_positions: int, device: str,
     return _row(Path(model_name).name, "vision", "A0", shares_u, shares_xhat)
 
 
+def _seeded_val_indices(n: int, n_images: int, seed: int = 0) -> np.ndarray:
+    """A deterministic random index set over `n` items, the same way `deit_row` draws its images
+    (`np.random.default_rng(seed).choice`, then sorted). Used instead of `get_image_batch`'s own
+    `train=False` path, which takes `torch.arange(n_images)` — the FIRST `n_images` of `val.bin`.
+    ImageNet-derived validation splits are conventionally class-ordered, so those images plausibly
+    span only one or two of the 100 classes; every other row in this report (`lm_rows`, `deit_row`)
+    already draws a random sample instead. A fixed seed keeps it deterministic across runs and,
+    used the same way for every checkpoint, makes all five arms see identical images."""
+    return np.sort(np.random.default_rng(seed).choice(n, size=min(n_images, n), replace=False))
+
+
 def hallm_vit_rows(patterns: list[str], data_dir: str, n_positions: int, n_images: int,
                    device: str) -> list[dict]:
     """Rotation shares for ViTs we trained ourselves — the controlled half of the LM/vision
-    comparison (spec 2026-09-16 §5). Inputs are held-out ImageNet-100 images, center-cropped."""
+    comparison (spec 2026-09-16 §5). Inputs are a fixed random sample of held-out ImageNet-100
+    images (`_seeded_val_indices`), center-cropped, identical across all checkpoints — matching
+    how `lm_rows` and `deit_row` sample their inputs, so the ViT rows are a genuinely controlled
+    comparison rather than one that additionally varies by which images happened to sort first."""
     from hallm.data.imagenet import get_image_batch, load_images, load_labels
     from hallm.model.config import VisionConfig
     from hallm.model.vit import ViT
 
-    images = load_images(Path(data_dir) / "val.bin")
-    labels = load_labels(Path(data_dir) / "val_labels.npy")
+    images_all = load_images(Path(data_dir) / "val.bin")
+    labels_all = load_labels(Path(data_dir) / "val_labels.npy")
+    idx = _seeded_val_indices(len(images_all), n_images)
+    images, labels = images_all[idx], labels_all[idx]
     rows = []
     for path in sorted(p for pat in patterns for p in glob.glob(pat)):
         if Path(path).stem == "resume":
@@ -100,7 +116,9 @@ def hallm_vit_rows(patterns: list[str], data_dir: str, n_positions: int, n_image
         model = ViT(VisionConfig(**ckpt["model_cfg"]))
         model.load_state_dict(ckpt["model"])
         model.to(device).eval()
-        x, _ = get_image_batch(images, labels, n_images, model.cfg.image_size, device, None,
+        # train=False: no random crop/flip, just the fixed center crop — the images themselves
+        # are already the seeded sample selected above, not the eval path's own arange(n_images).
+        x, _ = get_image_batch(images, labels, len(idx), model.cfg.image_size, device, None,
                                train=False)
         shares_u = hallm_rotation_shares(model, x, n_positions, basis="u")
         shares_xhat = hallm_rotation_shares(model, x, n_positions, basis="xhat")
@@ -143,6 +161,35 @@ def report(rows: list[dict]) -> str:
     return "\n".join(L) + "\n"
 
 
+def write_results(rows: list[dict], out_path: str | Path, report_path: str | Path,
+                  group: tuple[str, list[str], list[dict]] | None = None) -> None:
+    """Persist `rows` to `out_path` (JSON) and `report_path` (the markdown table).
+
+    `group`, when given, is `(flag_label, patterns, group_rows)` describing the row group just
+    added to `rows` — e.g. `("hallm-vit", args.hallm_vit, new_rows)`. If `patterns` is non-empty
+    (a group was actually requested) but `group_rows` came back empty, this refuses to write at
+    all and exits non-zero: a requested glob that matches zero files (wrong case, wrong path) must
+    fail loudly rather than silently produce an empty section, or — since `results/analysis/
+    ffn-symmetry.json` is regenerated from `rows` on every call — silently truncate a file that
+    already held rows from other groups (LM checkpoints, DeiT, the random reference) down to just
+    those."""
+    if group is not None:
+        label, patterns, group_rows = group
+        if patterns and not group_rows:
+            raise SystemExit(
+                f"ffn_symmetry: --{label} {patterns!r} matched 0 files — refusing to write "
+                f"{out_path}. This would silently produce an empty section (or truncate rows "
+                "already written for other groups). Check the glob — this filesystem is "
+                "case-sensitive (e.g. 'V8-*', not 'v8-*')."
+            )
+    out_path, report_path = Path(out_path), Path(report_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(report(rows), encoding="utf-8")
+    print(f"wrote {out_path} and {report_path}")
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(description="FFN Jacobian rotation share")
     ap.add_argument("--checkpoints", nargs="*", default=[])
@@ -162,23 +209,21 @@ def main(argv: list[str] | None = None) -> None:
     args = ap.parse_args(argv)
     device = args.device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-    def write(rows: list[dict]) -> None:
-        Path(args.out).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.out).write_text(json.dumps(rows, indent=2) + "\n", encoding="utf-8")
-        Path(args.report).parent.mkdir(parents=True, exist_ok=True)
-        Path(args.report).write_text(report(rows), encoding="utf-8")
-        print(f"wrote {args.out} and {args.report}")
+    def write(rows: list[dict], group: tuple[str, list[str], list[dict]] | None = None) -> None:
+        write_results(rows, args.out, args.report, group=group)
 
     # Written after each row group: a failure in a later group (e.g. a missing/renamed checkpoint,
     # or an offline run with --deit) then cannot lose the already-computed earlier rows.
-    rows = lm_rows(args.checkpoints, args.data, args.n_positions, args.windows, device)
-    write(rows)
+    lm_group = lm_rows(args.checkpoints, args.data, args.n_positions, args.windows, device)
+    rows = list(lm_group)
+    write(rows, group=("checkpoints", args.checkpoints, lm_group))
     if args.deit:
         rows.append(deit_row(args.images, args.n_images, args.n_positions, device, args.deit_model))
         write(rows)
     if args.hallm_vit:
-        rows += hallm_vit_rows(args.hallm_vit, args.vit_data, args.n_positions, args.n_images_ours, device)
-        write(rows)
+        vit_group = hallm_vit_rows(args.hallm_vit, args.vit_data, args.n_positions, args.n_images_ours, device)
+        rows += vit_group
+        write(rows, group=("hallm-vit", args.hallm_vit, vit_group))
     rows.append(random_row())
     write(rows)
 

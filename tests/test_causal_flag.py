@@ -34,7 +34,11 @@ def test_causal_attention_ignores_later_positions():
 
 
 def test_lm_forward_unchanged_by_the_new_field():
-    """The flag must not perturb an existing LM: same seed, same logits."""
+    """Sanity check only: the default (`causal` omitted) matches an explicit `causal=True` config,
+    both otherwise identical, so this is tautological rather than proof the field leaves existing
+    LM runs bit-identical. That property is actually proven in
+    `tests/test_transposed_loop.py::test_default_path_is_bit_identical`, which compares A0/A2/
+    A2-attn/A1u2 against golden logits captured from the pre-amendment code."""
     def logits_for(cfg):
         torch.manual_seed(1234)
         model = GPT(cfg).eval()
