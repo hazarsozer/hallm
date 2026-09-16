@@ -24,6 +24,17 @@ import socket
 import sys
 from pathlib import Path
 
+# Suppress multiprocessing.resource_tracker's "leaked semaphore" UserWarning, which the os._exit(0)
+# at the end of main() provokes at shutdown: os._exit skips the atexit semaphore-unregister
+# handshake, so the resource_tracker — a lazily-spawned *separate* interpreter process, started by
+# `datasets`/torch — notices an unregistered semaphore at its own shutdown and warns; it still does
+# the actual cleanup, so this is cosmetic. A plain `warnings.filterwarnings()` call here has no
+# effect on that warning (verified): it fires in the tracker's own process, not this one, so this
+# process's warnings filters don't apply to it. What does reach it is `PYTHONWARNINGS` in the
+# environment, set before the tracker is spawned — multiprocessing execs the tracker inheriting
+# this process's `os.environ`, and the fresh interpreter reads `PYTHONWARNINGS` at its own startup.
+os.environ.setdefault("PYTHONWARNINGS", "ignore::UserWarning:multiprocessing.resource_tracker")
+
 import numpy as np
 
 from hallm.data.imagenet import STORED, preprocess_image

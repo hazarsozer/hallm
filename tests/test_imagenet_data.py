@@ -4,8 +4,6 @@ import torch
 
 from hallm.data.imagenet import IMAGENET_MEAN, get_image_batch, load_images, load_labels, preprocess_image
 
-Image = pytest.importorskip("PIL.Image")
-
 
 def _fixture(tmp_path, n=8):
     images = np.random.default_rng(0).integers(0, 255, (n, 3, 128, 128), dtype=np.uint8)
@@ -16,6 +14,7 @@ def _fixture(tmp_path, n=8):
 
 
 def test_preprocess_resizes_shorter_side_and_center_crops():
+    Image = pytest.importorskip("PIL.Image")
     img = Image.new("RGB", (320, 160), color=(10, 20, 30))
     out = preprocess_image(img, size=128)
     assert out.shape == (3, 128, 128)
@@ -24,6 +23,7 @@ def test_preprocess_resizes_shorter_side_and_center_crops():
 
 
 def test_preprocess_handles_grayscale_input():
+    Image = pytest.importorskip("PIL.Image")
     out = preprocess_image(Image.new("L", (200, 200), color=128), size=128)
     assert out.shape == (3, 128, 128)
 
