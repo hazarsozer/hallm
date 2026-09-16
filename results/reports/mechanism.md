@@ -51,4 +51,4 @@ table once named A2ffn against the pre-registered L8 reading, A2attn).
 - decomposition incomplete at this rung: need both A2ffn and A2attn.
 
 
-<!-- built 2026-09-15T23:39:06+00:00 from 50 run(s) -->
+<!-- built 2026-09-16T01:43:10+00:00 from 51 run(s) -->
