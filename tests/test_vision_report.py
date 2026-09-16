@@ -66,7 +66,7 @@ def test_followup_seed_rule_triggers_above_one_point():
     r = rows()
     r[2]["top1"] = 0.420                    # V8-A2 (0.420) vs V4-A0 (0.400) → gap = 2.0 >= 1.0
     text = bvr.vision_report(r)
-    assert "|Δ| = 2.0 points" in text
+    assert "|Δ| = 2.00 points" in text
     assert "triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4" in text
 
 
@@ -74,7 +74,7 @@ def test_followup_seed_rule_not_triggered_below_one_point():
     r = rows()
     r[2]["top1"] = 0.405                    # V8-A2 vs V4-A0 gap = 0.5 < 1.0
     text = bvr.vision_report(r)
-    assert "|Δ| = 0.5 points" in text
+    assert "|Δ| = 0.50 points" in text
     assert "not triggered — reported as no difference detected at 1 seed" in text
 
 
@@ -84,7 +84,7 @@ def test_followup_seed_rule_triggers_either_direction():
     r = rows()
     r[2]["top1"] = 0.385                    # V8-A2 (0.385) vs V4-A0 (0.400) → raw diff -1.5
     text = bvr.vision_report(r)
-    assert "|Δ| = 1.5 points" in text
+    assert "|Δ| = 1.50 points" in text
     assert "triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4" in text
 
 
@@ -92,6 +92,28 @@ def test_followup_seed_rule_pending_when_an_input_is_missing():
     r = [row for row in rows() if row["run"] != "V4-A0-s1337"]   # V4-A0 absent
     text = bvr.vision_report(r)
     assert "**Follow-up seed rule (spec §3):** pending" in text
+
+
+def test_followup_seed_rule_triggers_at_mathematically_exact_boundary():
+    # top1 = correct / 5000 images. An exact 1.0-point gap is exactly 50/5000 images — here
+    # 2050/5000 vs 2000/5000 — which floats as 0.9999999999999953, just under 1.0 without the
+    # tolerance. A mathematically-exact 1.0-point gap must still trigger.
+    r = rows()
+    r[2]["top1"] = 2050 / 5000              # V8-A2
+    r[0]["top1"] = 2000 / 5000              # V4-A0
+    text = bvr.vision_report(r)
+    assert "triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4" in text
+
+
+def test_followup_seed_rule_displays_true_gap_not_rounded_up_to_threshold():
+    # 49/5000 images = a genuine 0.98-point gap. It must print as "0.98", not round up to a
+    # display of "1.0" that would contradict a "not triggered" decision next to it.
+    r = rows()
+    r[2]["top1"] = 2549 / 5000              # V8-A2
+    r[0]["top1"] = 2500 / 5000              # V4-A0
+    text = bvr.vision_report(r)
+    assert "|Δ| = 0.98 points" in text
+    assert "not triggered — reported as no difference detected at 1 seed" in text
 
 
 def test_empty_rows_degrade_to_all_pending_without_raising():

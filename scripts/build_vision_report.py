@@ -91,9 +91,14 @@ def vision_report(rows: list[dict]) -> str:
     a2, v4 = seen.get("V8-A2"), seen.get("V4-A0")
     if a2 and v4:
         gap = abs(100 * (a2["top1"] - v4["top1"]))
+        # top1 is correct/N_images, so an exact 1.0-point gap (e.g. 50/5000 images) can land as
+        # 0.9999999999999953 in float — compare with a tolerance so a mathematically-exact gap
+        # always triggers regardless of how the subtraction happens to round.
         follow = ("triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4"
-                  if gap >= 1.0 else "not triggered — reported as no difference detected at 1 seed")
-        out += ["", f"**Follow-up seed rule (spec §3):** |Δ| = {gap:.1f} points → {follow}"]
+                  if gap >= 1.0 - 1e-9 else "not triggered — reported as no difference detected at 1 seed")
+        # Two decimals here (unlike the pairs table's one) so the printed number never contradicts
+        # the decision next to it — e.g. a genuine 0.96-point gap must not read as "1.0 points".
+        out += ["", f"**Follow-up seed rule (spec §3):** |Δ| = {gap:.2f} points → {follow}"]
     else:
         out += ["", "**Follow-up seed rule (spec §3):** pending"]
     return "\n".join(out) + "\n"
