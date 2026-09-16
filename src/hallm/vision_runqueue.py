@@ -6,6 +6,7 @@ an interrupted session loses at most the current run's progress since its last c
 
 from __future__ import annotations
 
+import json
 from dataclasses import asdict
 from pathlib import Path
 
@@ -16,7 +17,7 @@ from hallm.experiment import load_vision_experiment
 from hallm.manifest import build_manifest, write_manifest
 from hallm.model.vit import ViT
 from hallm.results import result_path, write_run_result
-from hallm.train import set_seed
+from hallm.train import load_resume_checkpoint, set_seed
 from hallm.vision_train import evaluate_top1, train_vision
 
 OK, PAUSED = "ok", "paused"
@@ -54,6 +55,30 @@ def run_one_vision(cfg_path, data_dir, results_dir, device, stop_step: int | Non
             manifest_path,
         )
 
+    resume = out / "resume.pt"
+    if resume.exists():
+        # Config validation (mirrors runqueue.py's run_one): a config edited between sessions must
+        # not silently continue training under different hyperparameters than the frozen manifest
+        # attests — these are 50k-step runs explicitly designed to resume across sessions, so a
+        # touched YAML must be caught before it trains under a config the manifest no longer
+        # describes.
+        ckpt = load_resume_checkpoint(resume, map_location="cpu")
+        mismatches = [
+            k for k, (a, b) in {
+                **{f"model_cfg.{k}": (v, asdict(model_cfg).get(k)) for k, v in ckpt["model_cfg"].items()},
+                **{f"train_cfg.{k}": (v, asdict(train_cfg).get(k)) for k, v in ckpt["train_cfg"].items()},
+            }.items()
+            if a != b
+        ]
+        if mismatches:
+            raise RuntimeError(
+                f"{name}: resume.pt was trained under a different config than {cfg_path} now "
+                f"describes — differing keys: {mismatches}"
+            )
+        if stop_step is not None and int(ckpt["step"]) >= stop_step:
+            print(f"[stop] {name}: resume checkpoint already at step {ckpt['step']} >= stop_step {stop_step}")
+            return PAUSED
+
     images = load_images(data_dir / "train.bin")
     labels = load_labels(data_dir / "train_labels.npy")
     val_images = load_images(data_dir / "val.bin")
@@ -61,7 +86,6 @@ def run_one_vision(cfg_path, data_dir, results_dir, device, stop_step: int | Non
 
     set_seed(train_cfg.seed, train_cfg.deterministic)
     model = ViT(model_cfg)
-    resume = out / "resume.pt"
     print(f"[run ] {name}: {'resuming' if resume.exists() else 'fresh'} on {device}")
     train_vision(model, train_cfg, images, labels, device=device, progress=True,
                  resume_path=str(resume), stop_step=stop_step, val_images=val_images,
@@ -84,8 +108,6 @@ def run_one_vision(cfg_path, data_dir, results_dir, device, stop_step: int | Non
 
 def drain_vision(queue_path, data_dir, results_dir, device, max_runs: int | None = None,
                  stop_step: int | None = None) -> list[dict]:
-    import json
-
     rows: list[dict] = []
     lines = [ln.strip() for ln in Path(queue_path).read_text(encoding="utf-8").splitlines()
              if ln.strip() and not ln.startswith("#")]
@@ -94,7 +116,17 @@ def drain_vision(queue_path, data_dir, results_dir, device, max_runs: int | None
         if result_path(results_dir, name).exists():
             print(f"[skip] {name}: result already written")
             continue
-        if run_one_vision(line, data_dir, results_dir, device, stop_step) == PAUSED:
+        try:
+            status = run_one_vision(line, data_dir, results_dir, device, stop_step)
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            # Per-entry isolation (mirrors runqueue.py's drain): the five arms are independent runs
+            # writing independent result files, so a transient failure on one must not cost the
+            # queue every run after it — this runs unattended overnight.
+            print(f"[fail] {line}: {type(e).__name__}: {e}")
+            continue
+        if status == PAUSED:
             break
         rows.append(json.loads(result_path(results_dir, name).read_text(encoding="utf-8")))
         if max_runs is not None and len(rows) >= max_runs:
