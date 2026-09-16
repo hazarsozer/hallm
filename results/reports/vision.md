@@ -10,16 +10,16 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V4-A0-s1337 | A0 | 4 | 12.59 | 48.1 | 2.5436 |
 | V8-A0-s1337 | A0 | 8 | 25.17 | 47.0 | 2.7713 |
 | V8-A2-s1337 | A2 | 8 | 12.59 | 47.3 | 2.6926 |
-| V8-A1u4 | — | — | — | pending | pending |
+| V8-A1u4-s1337 | A1u4 | 8 | 12.59 | 47.4 | 2.6955 |
 | V8-A1u4t | — | — | — | pending | pending |
 
 ## Pairs
 
 | a | b | kind | top-1 a / b | Δ points | note |
 |---|---|---|---|---|---|
-| V8-A1u4 | V4-A0 | iso-storage | — | — | pending |
+| V8-A1u4 | V4-A0 | iso-storage | 47.4 / 48.1 | -0.8 |  |
 | V8-A2 | V4-A0 | iso-storage | 47.3 / 48.1 | -0.8 |  |
-| V8-A1u4 | V8-A2 | matched storage and compute | — | — | pending |
+| V8-A1u4 | V8-A2 | matched storage and compute | 47.4 / 47.3 | +0.0 |  |
 | V8-A1u4t | V8-A1u4 | matched storage and compute | — | — | pending |
 
 **Depth gate (spec §3):** V8-A0 47.0 vs V4-A0 48.1 → **FAIL — the setup cannot say anything about sharing**
@@ -38,8 +38,8 @@ Reference: `V4-A0`.
 | V8-A0 | git_commit, model_cfg.n_layer, train_cfg.out_dir |
 | V8-A2 | git_commit, model_cfg.n_layer, model_cfg.share_intra_attn, model_cfg.share_intra_ffn, train_cfg.out_dir |
 | V8-A1u4 | git_commit, model_cfg.n_layer, model_cfg.n_unique_blocks, model_cfg.share_cross_layer, train_cfg.out_dir |
-| V8-A1u4t | pending |
+| V8-A1u4t | git_commit, model_cfg.loop_pass2, model_cfg.n_layer, model_cfg.n_unique_blocks, model_cfg.share_cross_layer, train_cfg.out_dir |
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-16T22:03:55+00:00 from 57 run(s) -->
+<!-- built 2026-09-16T23:01:57+00:00 from 58 run(s) -->
