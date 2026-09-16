@@ -7,6 +7,8 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | run | lambada_acc | blimp_macro | copy_gain | late_loss | rare_loss |
 |---|---|---|---|---|---|
 | L10-A2attn-s1337 | 0.0829 | 0.6403 | 1.2402 | 3.1798 | 6.9381 |
+| L10-A2attn-s1338 | 0.0734 | 0.6366 | 1.2185 | 3.1794 | 6.9307 |
+| L10-A2attn-s1339 | 0.0757 | 0.6365 | 1.2895 | 3.1703 | 6.9157 |
 | L16-A0-s1337 | 0.0891 | 0.6278 | 1.3680 | 3.0898 | 6.7806 |
 | L16-A0-s1338 | 0.0788 | 0.6370 | 1.2933 | 3.0849 | 6.7784 |
 | L16-A0-s1339 | 0.0930 | 0.6319 | 1.3852 | 3.0892 | 6.7574 |
@@ -24,6 +26,9 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | L8-A1u4-s1337 | 0.0786 | 0.6247 | 1.2663 | 3.2564 | 7.0632 |
 | L8-A1u4-s1338 | 0.0885 | 0.6183 | 1.1708 | 3.2547 | 7.0480 |
 | L8-A1u4-s1339 | 0.0697 | 0.6188 | 1.1646 | 3.2638 | 7.0388 |
+| L8-A1u4a-s1337 | 0.0673 | 0.6218 | 1.1832 | 3.2814 | 7.0990 |
+| L8-A1u4n-s1337 | 0.0774 | 0.6087 | 1.2088 | 3.2983 | 7.1707 |
+| L8-A1u4t-s1337 | 0.0689 | 0.6133 | 1.1747 | 3.2905 | 7.1243 |
 | L8-A2-s1337 | 0.0706 | 0.6044 | 1.2264 | 3.3044 | 7.1843 |
 | L8-A2-s1338 | 0.0633 | 0.6092 | 1.2240 | 3.3123 | 7.1753 |
 | L9-A2attn-s1337 | 0.0827 | 0.6343 | 1.1960 | 3.1922 | 7.0022 |
@@ -47,11 +52,11 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | L9-A2attn | L8-A0 | iso-storage | copy_gain | 1 | +0.19 | NOT SUPPORTED |
 | L9-A2attn | L8-A0 | iso-storage | late_loss | 1 | +0.60 | NOT SUPPORTED |
 | L9-A2attn | L8-A0 | iso-storage | rare_loss | 1 | +0.69 | NOT SUPPORTED |
-| L10-A2attn | L8-A0 | iso-storage | lambada_acc | 1 | +0.71 | NOT SUPPORTED |
-| L10-A2attn | L8-A0 | iso-storage | blimp_macro | 1 | -0.56 | SUPPORTED |
-| L10-A2attn | L8-A0 | iso-storage | copy_gain | 1 | +0.15 | NOT SUPPORTED |
-| L10-A2attn | L8-A0 | iso-storage | late_loss | 1 | +0.21 | NOT SUPPORTED |
-| L10-A2attn | L8-A0 | iso-storage | rare_loss | 1 | -0.23 | SUPPORTED |
+| L10-A2attn | L8-A0 | iso-storage | lambada_acc | 2 | +1.30 | NOT SUPPORTED |
+| L10-A2attn | L8-A0 | iso-storage | blimp_macro | 2 | -0.66 | SUPPORTED |
+| L10-A2attn | L8-A0 | iso-storage | copy_gain | 2 | +0.15 | NOT SUPPORTED |
+| L10-A2attn | L8-A0 | iso-storage | late_loss | 2 | +0.30 | NOT SUPPORTED |
+| L10-A2attn | L8-A0 | iso-storage | rare_loss | 2 | -0.02 | NOT SUPPORTED |
 | L8-A1u4 | L4-A0 | iso-storage | lambada_acc | 3 | -0.19 | NOT SUPPORTED |
 | L8-A1u4 | L4-A0 | iso-storage | blimp_macro | 3 | -0.14 | NOT SUPPORTED |
 | L8-A1u4 | L4-A0 | iso-storage | copy_gain | 3 | +0.02 | NOT SUPPORTED |
@@ -72,5 +77,50 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | L16-A1u8 | L16-A2 | matched | copy_gain | 3 | -0.04 | no difference detected |
 | L16-A1u8 | L16-A2 | matched | late_loss | 3 | -2.21 | L16-A1u8 better |
 | L16-A1u8 | L16-A2 | matched | rare_loss | 3 | -2.01 | L16-A1u8 better |
+| L8-A1u4t | L8-A1u4 | matched | lambada_acc | 1 | +0.97 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A1u4 | matched | blimp_macro | 1 | +1.14 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A1u4 | matched | copy_gain | 1 | +0.09 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A1u4 | matched | late_loss | 1 | +1.05 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A1u4 | matched | rare_loss | 1 | +0.87 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A1u4 | matched | lambada_acc | 1 | +0.12 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A1u4 | matched | blimp_macro | 1 | +1.60 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A1u4 | matched | copy_gain | 1 | +0.06 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A1u4 | matched | late_loss | 1 | +1.29 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A1u4 | matched | rare_loss | 1 | +1.52 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A1u4 | matched | lambada_acc | 1 | +1.13 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A1u4 | matched | blimp_macro | 1 | +0.29 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A1u4 | matched | copy_gain | 1 | +0.08 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A1u4 | matched | late_loss | 1 | +0.77 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A1u4 | matched | rare_loss | 1 | +0.51 | pending (1/3 seeds) |
+| L8-A1u4t | L4-A0 | iso-storage | lambada_acc | 1 | +1.07 | NOT SUPPORTED |
+| L8-A1u4t | L4-A0 | iso-storage | blimp_macro | 1 | +0.18 | NOT SUPPORTED |
+| L8-A1u4t | L4-A0 | iso-storage | copy_gain | 1 | +0.02 | NOT SUPPORTED |
+| L8-A1u4t | L4-A0 | iso-storage | late_loss | 1 | +0.09 | NOT SUPPORTED |
+| L8-A1u4t | L4-A0 | iso-storage | rare_loss | 1 | +0.23 | NOT SUPPORTED |
+| L8-A1u4n | L4-A0 | iso-storage | lambada_acc | 1 | +0.22 | NOT SUPPORTED |
+| L8-A1u4n | L4-A0 | iso-storage | blimp_macro | 1 | +0.64 | NOT SUPPORTED |
+| L8-A1u4n | L4-A0 | iso-storage | copy_gain | 1 | -0.01 | SUPPORTED |
+| L8-A1u4n | L4-A0 | iso-storage | late_loss | 1 | +0.33 | NOT SUPPORTED |
+| L8-A1u4n | L4-A0 | iso-storage | rare_loss | 1 | +0.88 | NOT SUPPORTED |
+| L8-A1u4a | L4-A0 | iso-storage | lambada_acc | 1 | +1.23 | NOT SUPPORTED |
+| L8-A1u4a | L4-A0 | iso-storage | blimp_macro | 1 | -0.67 | SUPPORTED |
+| L8-A1u4a | L4-A0 | iso-storage | copy_gain | 1 | +0.02 | NOT SUPPORTED |
+| L8-A1u4a | L4-A0 | iso-storage | late_loss | 1 | -0.18 | SUPPORTED |
+| L8-A1u4a | L4-A0 | iso-storage | rare_loss | 1 | -0.13 | SUPPORTED |
+| L8-A1u4t | L8-A2 | matched | lambada_acc | 1 | +0.17 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A2 | matched | blimp_macro | 1 | -0.89 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A2 | matched | copy_gain | 1 | +0.05 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A2 | matched | late_loss | 1 | -0.42 | pending (1/3 seeds) |
+| L8-A1u4t | L8-A2 | matched | rare_loss | 1 | -0.84 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A2 | matched | lambada_acc | 1 | -0.68 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A2 | matched | blimp_macro | 1 | -0.43 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A2 | matched | copy_gain | 1 | +0.02 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A2 | matched | late_loss | 1 | -0.18 | pending (1/3 seeds) |
+| L8-A1u4n | L8-A2 | matched | rare_loss | 1 | -0.19 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A2 | matched | lambada_acc | 1 | +0.33 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A2 | matched | blimp_macro | 1 | -1.74 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A2 | matched | copy_gain | 1 | +0.04 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A2 | matched | late_loss | 1 | -0.70 | pending (1/3 seeds) |
+| L8-A1u4a | L8-A2 | matched | rare_loss | 1 | -1.19 | pending (1/3 seeds) |
 
-<!-- built 2026-09-16T03:48:11+00:00 from 52 run(s) -->
+<!-- built 2026-09-16T04:07:06+00:00 from 52 run(s) -->
