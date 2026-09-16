@@ -44,3 +44,10 @@ runs*.log
 # tracked — so they are versioned and survive a re-clone, while the file that
 # loads them stays local to whoever is working.
 /CLAUDE.md
+
+# SDD workspace (per-plan scratch: ledger, briefs, review packages)
+.superpowers/
+
+# ImageNet-100 uint8 memmaps (6.4 GB train, 245 MB val)
+data/in100/*.bin
+data/in100/*.npy
