@@ -26,8 +26,27 @@ PAIRS = [
 ]
 
 
+_REQUIRED_FIELDS = ("arm", "n_layer", "non_embedding_params_M", "top1", "val_loss")
+
+
 def _by_arm(rows: list[dict]) -> dict[str, dict]:
-    return {r["run"].rsplit("-s", 1)[0]: r for r in rows if r["run"].startswith("V")}
+    """Index vision rows by arm name (run id minus the -s<seed> suffix).
+
+    Guards the fields the table and pairs sections read — a V-prefixed row missing one would
+    otherwise raise a bare KeyError deep inside the ARMS loop and kill generation of the whole
+    report rather than just that row. Real rows always carry these (write_run_result only runs
+    after eval completes); this defends against a future partial or hand-edited result file."""
+    seen: dict[str, dict] = {}
+    for r in rows:
+        if not r["run"].startswith("V"):
+            continue
+        missing = [f for f in _REQUIRED_FIELDS if f not in r]
+        if missing:
+            raise ValueError(
+                f"vision row {r['run']!r} missing required field(s): {', '.join(missing)} "
+                "— partial or hand-edited result file?")
+        seen[r["run"].rsplit("-s", 1)[0]] = r
+    return seen
 
 
 def vision_report(rows: list[dict]) -> str:
@@ -69,14 +88,14 @@ def vision_report(rows: list[dict]) -> str:
     else:
         out += ["", "**Depth gate (spec §3):** pending"]
 
-    follow = ""
     a2, v4 = seen.get("V8-A2"), seen.get("V4-A0")
     if a2 and v4:
         gap = abs(100 * (a2["top1"] - v4["top1"]))
         follow = ("triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4"
                   if gap >= 1.0 else "not triggered — reported as no difference detected at 1 seed")
         out += ["", f"**Follow-up seed rule (spec §3):** |Δ| = {gap:.1f} points → {follow}"]
-    out += ["", f"<!-- built {datetime.now(timezone.utc).isoformat(timespec='seconds')} -->"]
+    else:
+        out += ["", "**Follow-up seed rule (spec §3):** pending"]
     return "\n".join(out) + "\n"
 
 
@@ -87,7 +106,9 @@ def main() -> None:
     rows = read_run_results(Path(args.results) / "runs")
     path = Path(args.results) / "reports" / "vision.md"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(vision_report(rows), encoding="utf-8")
+    stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    text = vision_report(rows) + f"\n<!-- built {stamp} from {len(rows)} run(s) -->\n"
+    path.write_text(text, encoding="utf-8")
     print(f"wrote {path}")
 
 
