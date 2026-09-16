@@ -19,7 +19,9 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import os
 import socket
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -96,7 +98,18 @@ def main() -> None:
         ),
         encoding="utf-8",
     )
-    print(f"wrote {out}/train.bin, val.bin, labels, SOURCE.json — {counts}")
+    print(f"wrote {out}/train.bin, val.bin, labels, SOURCE.json — {counts}", flush=True)
+
+    # `datasets`/fsspec's streaming client leaves a non-daemon thread alive after this point, so a
+    # normal `return` here blocks forever in threading's shutdown join waiting for it (observed:
+    # the process never exits, even though every output is already correct on disk). Every write
+    # above is already flushed and closed — train.bin/val.bin close via convert()'s `with` block,
+    # both label .npy files close inside np.save before it returns, SOURCE.json closes inside
+    # Path.write_text before it returns, and the print just above is flushed explicitly — so
+    # skipping interpreter cleanup (atexit handlers, thread joins, GC) here is safe.
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(0)
 
 
 if __name__ == "__main__":
