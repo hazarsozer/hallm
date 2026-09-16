@@ -29,3 +29,24 @@ def load_experiment(path: str | Path) -> tuple[ModelConfig, TrainConfig]:
     train_cfg = TrainConfig(**spec.get("train", {}))
     train_cfg.block_size = model_cfg.block_size  # keep loader/model block_size in sync
     return model_cfg, train_cfg
+
+
+def load_vision_experiment(path: str | Path) -> tuple["VisionConfig", "VisionTrainConfig"]:
+    """Return (vision_config, vision_train_config) from a YAML experiment file.
+
+    Mirrors `load_experiment`: `vshape` names an entry in `VSHAPES`, `arm` selects the sharing
+    flags through the same `arm_config` used by the LM ladder.
+    """
+    from hallm.model.config import VSHAPES, VisionConfig
+    from hallm.vision_train import VisionTrainConfig
+
+    spec = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
+    if "vshape" in spec:
+        base = VSHAPES[spec["vshape"]]
+    elif "model" in spec:
+        base = VisionConfig(**spec["model"])
+    else:
+        raise ValueError(f"{path}: vision config must define either `vshape` or `model`")
+    model_cfg = arm_config(base, spec.get("arm", "A0"))
+    train_cfg = VisionTrainConfig(**spec.get("train", {}))
+    return model_cfg, train_cfg
