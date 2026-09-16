@@ -85,6 +85,7 @@ class CausalSelfAttention(nn.Module):
         self.n_head = cfg.n_head
         self.head_dim = cfg.head_dim
         self.shared = cfg.share_intra_attn
+        self.causal = cfg.causal
         self.dropout_p = cfg.dropout
         self.resid_drop = nn.Dropout(cfg.dropout)
         if self.shared:
@@ -125,7 +126,7 @@ class CausalSelfAttention(nn.Module):
         v = v.view(B, T, self.n_head, self.head_dim).transpose(1, 2)
 
         y = F.scaled_dot_product_attention(
-            q, k, v, is_causal=True, dropout_p=self.dropout_p if self.training else 0.0
+            q, k, v, is_causal=self.causal, dropout_p=self.dropout_p if self.training else 0.0
         )
         y = y.transpose(1, 2).contiguous().view(B, T, C)
 

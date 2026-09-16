@@ -38,6 +38,7 @@ class ModelConfig:
     n_layer: int = 8               # number of transformer blocks L
     n_head: int = 8                # n_embd must be divisible by n_head (head_dim = n_embd // n_head)
     ffn_mult: int = 4              # FFN hidden h = ffn_mult * n_embd
+    causal: bool = True            # LM masks future positions; a ViT attends both ways
 
     # --- regularization / init ---
     dropout: float = 0.0
