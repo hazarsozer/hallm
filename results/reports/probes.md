@@ -7,6 +7,7 @@ total inference memory (bf16 weights + KV cache), the axis P4's rule is scored o
 | run | arm | suffix | stored non-emb M | val_ppl | weights MB | total MB @512×1 | total MB @2048×8 |
 |---|---|---|---|---|---|---|---|
 | L16-A0-s1337-d360 | A0 | d360 | 24.90 | 26.9909 | 86.3 | 98.1 | 463.8 |
+| L16-A2-s1337-fw | A2 | fw | 25.18 | 46.4472 | 102.4 | 119.1 | 639.2 |
 | L4-A0-s1337-d720 | A0 | d720 | 24.89 | 26.2455 | 122.9 | 128.8 | 311.6 |
 | L7-A0-s1337-lr2x | A0 | lr2x | 22.03 | 26.6818 | 96.0 | 103.4 | 330.9 |
 | L8-A0-s1337-fw | A0 | fw | 25.17 | 45.5634 | 102.3 | 110.7 | 370.8 |
@@ -16,4 +17,4 @@ total inference memory (bf16 weights + KV cache), the axis P4's rule is scored o
 | L8-A2-s1337-lrhalf | A2 | lrhalf | 12.59 | 31.5903 | 77.2 | 85.6 | 345.6 |
 | L8-A2attn-s1337-lr2x | A2attn | lr2x | 20.98 | 27.5449 | 93.9 | 102.3 | 362.4 |
 
-<!-- built 2026-09-16T06:22:29+00:00 from 53 run(s) -->
+<!-- built 2026-09-16T09:27:03+00:00 from 54 run(s) -->
