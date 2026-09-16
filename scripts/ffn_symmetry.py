@@ -1,15 +1,20 @@
-"""FFN Jacobian symmetry over trained checkpoints (spec 2026-09-15 §5). Inference-only.
+"""FFN Jacobian symmetry over trained checkpoints (spec 2026-09-15 §5, extended 2026-09-16 §5).
+Inference-only.
 
-LM checkpoints: inputs are `--windows` random WikiText-103 validation windows. DeiT-small (--deit):
-~256 Imagenette validation images, fetched once:
+LM checkpoints: inputs are `--windows` random WikiText-103 validation windows. DeiT-small (--deit,
+kind=vision) is an uncontrolled reference — a model trained by other people, on other data, at other
+scale — fetched once:
     curl -L -o data/imagenette2-160.tgz https://s3.amazonaws.com/fast-ai-imageclas/imagenette2-160.tgz
     tar -xzf data/imagenette2-160.tgz -C data/
+`--hallm-vit` (kind=vision-ours) is the controlled comparison: ViTs trained with our own recipe over
+the same sharing code as the LM ladder, inputs from `--vit-data`'s held-out ImageNet-100 split.
 Needs the analysis group:  uv run --group analysis python scripts/ffn_symmetry.py ...
 
 Usage:
   uv run --group analysis python scripts/ffn_symmetry.py \
       --checkpoints 'runs/ladder/L*-A0-s13??/*-s13??.pt' 'runs/ladder/L8-A2-s1337/*.pt' \
-      --data data --deit --images data/imagenette2-160/val
+      --data data --deit --images data/imagenette2-160/val \
+      --hallm-vit 'runs/vision/v8-*/*.pt' --vit-data data/in100
 """
 
 from __future__ import annotations
@@ -77,6 +82,33 @@ def deit_row(images_dir: str, n_images: int, n_positions: int, device: str,
     return _row(Path(model_name).name, "vision", "A0", shares_u, shares_xhat)
 
 
+def hallm_vit_rows(patterns: list[str], data_dir: str, n_positions: int, n_images: int,
+                   device: str) -> list[dict]:
+    """Rotation shares for ViTs we trained ourselves — the controlled half of the LM/vision
+    comparison (spec 2026-09-16 §5). Inputs are held-out ImageNet-100 images, center-cropped."""
+    from hallm.data.imagenet import get_image_batch, load_images, load_labels
+    from hallm.model.config import VisionConfig
+    from hallm.model.vit import ViT
+
+    images = load_images(Path(data_dir) / "val.bin")
+    labels = load_labels(Path(data_dir) / "val_labels.npy")
+    rows = []
+    for path in sorted(p for pat in patterns for p in glob.glob(pat)):
+        if Path(path).stem == "resume":
+            continue
+        ckpt = torch.load(path, map_location=device, weights_only=True)   # dict-of-primitives
+        model = ViT(VisionConfig(**ckpt["model_cfg"]))
+        model.load_state_dict(ckpt["model"])
+        model.to(device).eval()
+        x, _ = get_image_batch(images, labels, n_images, model.cfg.image_size, device, None,
+                               train=False)
+        shares_u = hallm_rotation_shares(model, x, n_positions, basis="u")
+        shares_xhat = hallm_rotation_shares(model, x, n_positions, basis="xhat")
+        rows.append(_row(Path(path).stem, "vision-ours", model.cfg.arm, shares_u, shares_xhat))
+        print(rows[-1]["model"], rows[-1]["mean"])
+    return rows
+
+
 def random_row(d: int = 256, h: int = 1024, n: int = 64) -> dict:
     g = torch.Generator().manual_seed(0)
     share = rotation_share(torch.randn(h, d, generator=g), torch.randn(d, h, generator=g),
@@ -96,8 +128,12 @@ def report(rows: list[dict]) -> str:
          "‖½(J − Jᵀ)‖² / ‖J‖² of each FFN's input Jacobian at real inputs. 0 = W+Wᵀ (exact), "
          "~0.5 = random matrices, 1 = pure rotation. The share is basis-dependent: `mean` is w.r.t. "
          "u = LN2(x) (includes the LayerNorm gain γ), `mean (x̂)` w.r.t. the pre-gain normalized "
-         "input (γ folded into J). Cross-model comparisons are uncontrolled (different recipe, "
-         "scale, data): mechanism evidence, not a test.", "",
+         "input (γ folded into J). `kind=vision` (DeiT-small) is an **uncontrolled reference** "
+         "(other recipe, scale and data) — a model trained by other people, not evidence for or "
+         "against sharing here. `kind=vision-ours` is the controlled measurement (spec "
+         "2026-09-16 §5): ViTs trained with our own recipe over the same sharing code as the LM "
+         "ladder (`kind=lm`), so it is directly comparable to it. Cross-model comparisons "
+         "otherwise remain uncontrolled: mechanism evidence, not a test.", "",
          "| model | kind | arm | layers | mean | mean (x̂) | per layer |",
          "|---|---|---|---|---|---|---|"]
     for r in rows:
@@ -117,6 +153,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument("--deit-model", default="facebook/deit-small-patch16-224")
     ap.add_argument("--images", default="data/imagenette2-160/val")
     ap.add_argument("--n-images", type=int, default=256)
+    ap.add_argument("--hallm-vit", nargs="*", default=[])
+    ap.add_argument("--vit-data", default="data/in100")
+    ap.add_argument("--n-images-ours", type=int, default=64)
     ap.add_argument("--out", default="results/analysis/ffn-symmetry.json")
     ap.add_argument("--report", default="results/reports/ffn-symmetry.md")
     ap.add_argument("--device", default=None)
@@ -130,12 +169,15 @@ def main(argv: list[str] | None = None) -> None:
         Path(args.report).write_text(report(rows), encoding="utf-8")
         print(f"wrote {args.out} and {args.report}")
 
-    # Written after the LM rows, and again after DeiT: a DeiT failure (e.g. a missing/renamed
-    # checkpoint, or an offline run with --deit) then cannot lose the already-computed LM rows.
+    # Written after each row group: a failure in a later group (e.g. a missing/renamed checkpoint,
+    # or an offline run with --deit) then cannot lose the already-computed earlier rows.
     rows = lm_rows(args.checkpoints, args.data, args.n_positions, args.windows, device)
     write(rows)
     if args.deit:
         rows.append(deit_row(args.images, args.n_images, args.n_positions, device, args.deit_model))
+        write(rows)
+    if args.hallm_vit:
+        rows += hallm_vit_rows(args.hallm_vit, args.vit_data, args.n_positions, args.n_images_ours, device)
         write(rows)
     rows.append(random_row())
     write(rows)
