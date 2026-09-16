@@ -114,6 +114,17 @@ the LM ladder, which is what "our recipe" means here.
 steps/min. Sequences are 50 positions against the LM's 1024, so the runs should be much cheaper,
 but the queue is sized from the measured number, not from this estimate.
 
+**Measured 2026-09-16 (V8-A0-s1337, RTX 4070 SUPER, bf16, batch 256).** The probe was run in three
+legs so that startup could be cancelled out rather than estimated: 200 steps in 22 s including the
+one-time 6.2 GB manifest hash, then 1000 steps in 78 s, then 2000 steps in 155 s. The last two legs
+have identical startup shape (the manifest already exists), so their difference is the true marginal
+cost: **77 s per 1000 steps including the eval that falls in that window — 13.0 steps/s, 779
+steps/min.** That gives **~64 min (1.07 h) per 50,000-step V8 run**, ~32 min for the 4-block V4-A0,
+and **~4.8 h for the whole five-arm queue**. Well under the §9 R4 re-plan threshold of 8 h for a
+single run, so the queue was launched rather than re-planned. For the record, the a-priori estimate
+from parameter counts (6·N per token, the LM's 50k-vocab head being about half its FLOPs, and near
+identical tokens per step) predicted ~1.0 h per V8 run — 7% low.
+
 ## 5. Symmetry measurement (the controlled comparison)
 
 After training, `scripts/ffn_symmetry.py` runs over the five ViT checkpoints with a collector that
