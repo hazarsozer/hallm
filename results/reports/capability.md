@@ -123,4 +123,4 @@ better (relative % for losses, percentage points for accuracies, nats for copy_g
 | L8-A1u4a | L8-A2 | matched | late_loss | 1 | -0.70 | pending (1/3 seeds) |
 | L8-A1u4a | L8-A2 | matched | rare_loss | 1 | -1.19 | pending (1/3 seeds) |
 
-<!-- built 2026-09-16T04:07:06+00:00 from 52 run(s) -->
+<!-- built 2026-09-16T06:22:29+00:00 from 53 run(s) -->

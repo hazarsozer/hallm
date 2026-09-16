@@ -1,0 +1,21 @@
+{
+  "arm": "A0",
+  "dataset": "fineweb-edu",
+  "final_train_loss": 3.8959,
+  "final_val_loss": 3.8351,
+  "fwd_gflops": 56.4139,
+  "kv_bytes_ctx2048_b8": 268435456,
+  "kv_bytes_ctx512_b1": 8388608,
+  "non_embedding_params_M": 25.1745,
+  "nonemb_weight_bytes_bf16": 50349056,
+  "peak_vram_bytes": 5721185280,
+  "run": "L8-A0-s1337-fw",
+  "size_bf16_MB": 97.596,
+  "size_fp32_MB": 195.191,
+  "test_ppl": 49.5483,
+  "test_split_sha256": "ed992264dc5a47370beaf076a0293e49dca4ee49538ae97b04f710f4729719ca",
+  "total_params_M": 51.1683,
+  "val_ppl": 45.5634,
+  "weight_bytes_bf16": 102336512,
+  "weight_frac_of_total_ctx512_b1": 0.9242
+}
