@@ -163,3 +163,38 @@ SHAPES: dict[str, ModelConfig] = {
     "p4w360l16": ModelConfig(vocab_size=50257, block_size=512, n_embd=360, n_layer=16, n_head=6),
     "s124": ModelConfig(vocab_size=50257, block_size=1024, n_embd=768, n_layer=12, n_head=12),
 }
+
+
+@dataclass(frozen=True)
+class VisionConfig(ModelConfig):
+    """A ViT's shape. Inherits every sharing flag, so `arm_config` and `build_blocks` work unchanged.
+
+    `block_size` is the token count (patches + class token) and `vocab_size`/`tie_embeddings` are
+    unused by `ViT` — they stay on the base config so manifests keep one schema.
+    """
+
+    image_size: int = 112
+    patch_size: int = 16
+    n_classes: int = 100
+    causal: bool = False
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.image_size % self.patch_size:
+            raise ValueError(
+                f"image_size ({self.image_size}) must be divisible by patch_size ({self.patch_size})"
+            )
+        n_tokens = (self.image_size // self.patch_size) ** 2 + 1
+        if self.block_size != n_tokens:
+            raise ValueError(
+                f"block_size ({self.block_size}) must equal patches + class token ({n_tokens})"
+            )
+
+
+# Controlled ViT study (spec 2026-09-16 §2): one geometry, two depths. 49 patches + class token.
+VSHAPES: dict[str, VisionConfig] = {
+    "v4": VisionConfig(vocab_size=1, block_size=50, n_embd=512, n_layer=4, n_head=8,
+                       tie_embeddings=False),
+    "v8": VisionConfig(vocab_size=1, block_size=50, n_embd=512, n_layer=8, n_head=8,
+                       tie_embeddings=False),
+}
