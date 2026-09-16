@@ -1,0 +1,10 @@
+{
+  "repo": "clane9/imagenet-100",
+  "revision": "0519dc2f402a3a18c6e57f7913db059215eee25b",
+  "stored_size": 128,
+  "counts": {
+    "train": 126689,
+    "validation": 5000
+  },
+  "preprocess": "resize shorter side then center crop, uint8 CHW"
+}
