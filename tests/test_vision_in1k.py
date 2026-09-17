@@ -119,3 +119,15 @@ def test_in100_batches_unchanged_by_this_pass():
     assert torch.equal(x1, x2) and torch.equal(y1, y2)
     assert x1.shape == (8, 3, 112, 112)
     assert y1.tolist() == RECORDED_IN100_SEED1337_LABELS
+
+
+def test_overfit_flag_fires_only_above_one_point():
+    import importlib.util, sys
+    spec = importlib.util.spec_from_file_location(
+        "bvr", Path("scripts/build_vision_report.py"))
+    bvr = importlib.util.module_from_spec(spec); sys.modules["bvr"] = bvr
+    spec.loader.exec_module(bvr)
+    assert bvr.overfit_flag(0.4696, 0.4806) == "still overfitting"   # 1.10 points
+    assert bvr.overfit_flag(0.4814, 0.4842) == ""                    # 0.28 points
+    assert bvr.overfit_flag(0.4814, None) == ""                      # no periodic evals recorded
+    assert bvr.overfit_flag(0.4814, 0.4714) == ""                    # final above best: no flag

@@ -5,13 +5,17 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 
 **Reading these numbers (spec §3, §4, §9 R3).** With 100 classes, random guessing scores ~1% top-1; every arm reported below is expected to land clearly above that floor, not merely above it. Separately, the augmentation floor used here — a random crop and flip, nothing else — is deliberately minimal and is *not* HaLViT's published training recipe, so absolute top-1 numbers are expected to sit below published ImageNet-100 results; a null result in this report therefore shows that the sharing gain does not survive a common, minimal recipe, not that it fails HaLViT's own recipe on its own terms. The third §3 sanity gate — V8-A2's FFN Jacobian rotation share measuring ~0 — is not repeated here; see `results/reports/ffn-symmetry.md`.
 
-| run | arm | layers | stored non-emb M | top-1 | val loss |
-|---|---|---|---|---|---|
-| V4-A0-s1337 | A0 | 4 | 12.59 | 48.1 | 2.5436 |
-| V8-A0-s1337 | A0 | 8 | 25.17 | 47.0 | 2.7713 |
-| V8-A2-s1337 | A2 | 8 | 12.59 | 47.3 | 2.6926 |
-| V8-A1u4-s1337 | A1u4 | 8 | 12.59 | 47.4 | 2.6955 |
-| V8-A1u4t-s1337 | A1u4t | 8 | 12.59 | 47.3 | 2.6737 |
+### imagenet-100 — 100-way, — passes over the corpus
+
+> 1 seed (1337), descriptive. Absolute accuracies are NOT comparable across blocks: the blocks differ in corpus, class count and pass count. Only arm gaps within a block are claimed.
+
+| run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes | top-1 best | best step | flag |
+|---|---|---|---|---|---|---|---|---|---|---|
+| V4-A0-s1337 | A0 | 4 | 12.59 | 48.1 | 2.5436 | imagenet-100 | — | — | — |  |
+| V8-A0-s1337 | A0 | 8 | 25.17 | 47.0 | 2.7713 | imagenet-100 | — | — | — |  |
+| V8-A2-s1337 | A2 | 8 | 12.59 | 47.3 | 2.6926 | imagenet-100 | — | — | — |  |
+| V8-A1u4-s1337 | A1u4 | 8 | 12.59 | 47.4 | 2.6955 | imagenet-100 | — | — | — |  |
+| V8-A1u4t-s1337 | A1u4t | 8 | 12.59 | 47.3 | 2.6737 | imagenet-100 | — | — | — |  |
 
 ## Pairs
 
@@ -42,4 +46,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-17T00:00:00+00:00 from 59 run(s) -->
+<!-- built 2026-09-17T22:28:46+00:00 from 59 run(s) -->

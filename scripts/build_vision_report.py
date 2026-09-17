@@ -32,6 +32,14 @@ PAIRS = [
 _REQUIRED_FIELDS = ("arm", "n_layer", "non_embedding_params_M", "top1", "val_loss")
 
 
+def overfit_flag(top1: float, top1_best: float | None, threshold: float = 0.01) -> str:
+    """Spec 2026-09-18 §7: an arm whose best periodic top-1 exceeds its final by more than
+    `threshold` (1.0 point) is disclosed as still overfitting rather than reported at its peak."""
+    if top1_best is None:
+        return ""
+    return "still overfitting" if (top1_best - top1) > threshold else ""
+
+
 def _by_arm(rows: list[dict], seed: int) -> dict[str, dict]:
     """Index vision rows by arm name (run id minus the -s<seed> suffix), keeping only rows for
     `seed`.
@@ -116,15 +124,42 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
         "sanity gate — V8-A2's FFN Jacobian rotation share measuring ~0 — is not repeated here; "
         "see `results/reports/ffn-symmetry.md`."
     )
-    out += ["", "| run | arm | layers | stored non-emb M | top-1 | val loss |", "|---|---|---|---|---|---|"]
+    # Group arms by corpus (spec 2026-09-18 §7): the two passes run the same five arms over
+    # different corpora and are not comparable to each other, so each corpus gets its own labelled
+    # block rather than one shared table. Rows written before this pass carry no `corpus` field at
+    # all — they fall back to "imagenet-100", the only corpus that existed then.
+    blocks: dict[str, list[str]] = {}
     for name in ARMS:
         r = seen.get(name)
-        if r is None:
-            out.append(f"| {name} | — | — | — | pending | pending |")
-        else:
+        corpus = (r.get("corpus") or "imagenet-100") if r is not None else "imagenet-100"
+        blocks.setdefault(corpus, []).append(name)
+
+    table_header = ["| run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes "
+                    "| top-1 best | best step | flag |",
+                   "|---|---|---|---|---|---|---|---|---|---|---|"]
+    for corpus, names in blocks.items():
+        sample = next((seen[n] for n in names if seen.get(n) is not None), None)
+        n_classes = sample.get("n_classes", "—") if sample is not None else "—"
+        passes_header = "—" if sample is None or sample.get("passes") is None else sample["passes"]
+        out += ["", f"### {corpus} — {n_classes}-way, {passes_header} passes over the corpus", "",
+               "> 1 seed (1337), descriptive. Absolute accuracies are NOT comparable across "
+               "blocks: the blocks differ in corpus, class count and pass count. Only arm gaps "
+               "within a block are claimed."]
+        out += ["", *table_header]
+        for name in names:
+            r = seen.get(name)
+            if r is None:
+                out.append(f"| {name} | — | — | — | pending | pending | {corpus} | — | — | — | |")
+                continue
+            passes_cell = "—" if r.get("passes") is None else r["passes"]
+            top1_best = r.get("top1_best")
+            top1_best_cell = "—" if top1_best is None else f"{100 * top1_best:.1f}"
+            best_step_cell = "—" if r.get("best_step") is None else r["best_step"]
             out.append(f"| {r['run']} | {r['arm']} | {r['n_layer']} | "
                        f"{r['non_embedding_params_M']:.2f} | {100 * r['top1']:.1f} | "
-                       f"{r['val_loss']:.4f} |")
+                       f"{r['val_loss']:.4f} | {r.get('corpus') or 'imagenet-100'} | "
+                       f"{passes_cell} | {top1_best_cell} | {best_step_cell} | "
+                       f"{overfit_flag(r['top1'], top1_best)} |")
 
     out += ["", "## Pairs", "", "| a | b | kind | top-1 a / b | Δ points | note |",
             "|---|---|---|---|---|---|"]
