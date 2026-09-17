@@ -131,3 +131,25 @@ def test_overfit_flag_fires_only_above_one_point():
     assert bvr.overfit_flag(0.4814, 0.4842) == ""                    # 0.28 points
     assert bvr.overfit_flag(0.4814, None) == ""                      # no periodic evals recorded
     assert bvr.overfit_flag(0.4814, 0.4714) == ""                    # final above best: no flag
+
+
+from hallm.experiment import load_vision_experiment
+
+IN1K_CONFIGS = ["V4-A0-s1337-in1k", "V8-A0-s1337-in1k", "V8-A2-s1337-in1k",
+                "V8-A1u4-s1337-in1k", "V8-A1u4t-s1337-in1k"]
+
+
+@pytest.mark.parametrize("name", IN1K_CONFIGS)
+def test_in1k_configs_match_the_first_pass_except_corpus_and_classes(name):
+    model_cfg, train_cfg = load_vision_experiment(f"configs/runs/{name}.yaml")
+    base_name = name.replace("-in1k", "")
+    base_model, base_train = load_vision_experiment(f"configs/runs/{base_name}.yaml")
+    assert model_cfg.n_classes == 1000 and base_model.n_classes == 100
+    assert replace(model_cfg, n_classes=100) == base_model        # arms identical otherwise
+    for field in ("lr", "min_lr", "warmup_steps", "max_steps", "weight_decay", "grad_clip",
+                  "batch_size", "grad_accum", "crop_size", "label_smoothing", "dtype",
+                  "deterministic", "seed"):
+        assert getattr(train_cfg, field) == getattr(base_train, field), field
+    assert train_cfg.dataset == "imagenet-1k"
+    assert train_cfg.eval_subsample == 10                          # 10 per class = 10,000 images
+    assert train_cfg.out_dir == f"runs/vision/{name}"
