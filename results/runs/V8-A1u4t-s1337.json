@@ -1,0 +1,12 @@
+{
+  "arm": "A1u4t",
+  "dataset": "imagenet-100",
+  "n_classes": 100,
+  "n_layer": 8,
+  "non_embedding_params_M": 12.5875,
+  "nonemb_weight_bytes_bf16": 25175040,
+  "run": "V8-A1u4t-s1337",
+  "top1": 0.4728,
+  "total_params_M": 13.0587,
+  "val_loss": 2.6737
+}
