@@ -33,6 +33,10 @@ class VisionTrainConfig(TrainConfig):
     label_smoothing: float = 0.1
     eval_batch: int = 250          # evaluation batch; the whole val split is scored
     batch_size: int = 256
+    # 0 keeps the first pass's behaviour exactly: periodic eval scores the whole split. A positive
+    # value is images PER CLASS for the periodic eval only — the final reported number in
+    # vision_runqueue always scores the full split (spec 2026-09-18 §7).
+    eval_subsample: int = 0
     # TrainConfig.block_size's comment reads "must equal ModelConfig.block_size" — for a ViT that
     # is 49 patches + class token = 50, not the LM default of 512. Nothing in this module reads
     # block_size (get_image_batch is driven by crop_size), but it is copied verbatim into every run

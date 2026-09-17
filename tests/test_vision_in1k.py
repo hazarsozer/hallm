@@ -1,4 +1,8 @@
 from dataclasses import replace
+from pathlib import Path
+
+import numpy as np
+import pytest
 
 from hallm.model.config import VSHAPES
 
@@ -54,3 +58,64 @@ def test_result_row_without_best_stays_backward_compatible():
     assert row["top1_best"] is None and row["best_step"] is None and row["passes"] is None
     assert row["corpus"] == "imagenet-100"
     assert row["top1"] == 0.4814
+
+
+def test_stratified_subsample_is_balanced_deterministic_and_sorted():
+    from hallm.data.imagenet import stratified_subsample
+
+    labels = np.repeat(np.arange(100), 50)          # 5000 images, 50 per class
+    idx = stratified_subsample(labels, per_class=10, seed=1337)
+    assert len(idx) == 1000
+    assert np.array_equal(idx, np.sort(idx))        # sorted => contiguous memmap reads
+    counts = np.bincount(labels[idx], minlength=100)
+    assert set(counts.tolist()) == {10}
+    assert np.array_equal(idx, stratified_subsample(labels, per_class=10, seed=1337))
+    assert not np.array_equal(idx, stratified_subsample(labels, per_class=10, seed=1338))
+
+
+def test_stratified_subsample_takes_all_when_class_is_smaller_than_quota():
+    from hallm.data.imagenet import stratified_subsample
+
+    labels = np.array([0, 0, 1, 1, 1, 2])
+    idx = stratified_subsample(labels, per_class=2, seed=1337)
+    counts = np.bincount(labels[idx], minlength=3)
+    assert counts.tolist() == [2, 2, 1]
+
+
+def test_eval_subsample_defaults_to_whole_split():
+    from hallm.vision_train import VisionTrainConfig
+    assert VisionTrainConfig().eval_subsample == 0
+
+
+def test_run_one_vision_uses_subsample_for_periodic_and_full_split_for_final():
+    """The periodic eval sees 2 images per class; the final number sees all 6."""
+    import hallm.vision_runqueue as vrq
+
+    labels = np.array([0, 0, 0, 1, 1, 1], dtype=np.int64)
+    n = vrq._split_for_periodic_eval(np.zeros((6, 3, 128, 128), np.uint8), labels, 2, 1337)
+    assert len(n[0]) == 4 and len(n[1]) == 4
+    assert np.bincount(n[1]).tolist() == [2, 2]
+
+
+IN100 = Path("data/in100")
+
+# the recorded first-batch labels for seed 1337, produced on the pre-change commit — a canary on
+# the ImageNet-100 data order itself (spec 2026-09-18 §7 — this pass must not move it)
+RECORDED_IN100_SEED1337_LABELS = [6, 89, 65, 7, 95, 33, 60, 68]
+
+
+@pytest.mark.skipif(not (IN100 / "train.bin").exists(), reason="ImageNet-100 memmaps not present")
+def test_in100_batches_unchanged_by_this_pass():
+    """Same seed, same loader, same bytes — the first pass's data order must not move."""
+    import torch
+
+    from hallm.data.imagenet import get_image_batch, load_images, load_labels
+
+    images, labels = load_images(IN100 / "train.bin"), load_labels(IN100 / "train_labels.npy")
+    g1 = torch.Generator().manual_seed(1337)
+    x1, y1 = get_image_batch(images, labels, 8, 112, "cpu", g1, train=True)
+    g2 = torch.Generator().manual_seed(1337)
+    x2, y2 = get_image_batch(images, labels, 8, 112, "cpu", g2, train=True)
+    assert torch.equal(x1, x2) and torch.equal(y1, y2)
+    assert x1.shape == (8, 3, 112, 112)
+    assert y1.tolist() == RECORDED_IN100_SEED1337_LABELS

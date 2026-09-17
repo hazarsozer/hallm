@@ -10,6 +10,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
 import torch
 
 from hallm.data.imagenet import load_images, load_labels
@@ -21,6 +22,17 @@ from hallm.train import load_resume_checkpoint, set_seed
 from hallm.vision_train import evaluate_top1, train_vision
 
 OK, PAUSED = "ok", "paused"
+
+
+def _split_for_periodic_eval(val_images, val_labels, per_class: int, seed: int):
+    """(images, labels) for the periodic eval: the whole split when per_class <= 0, else a fixed
+    stratified subsample materialised into RAM (10 per class over 1000 classes is ~491 MB)."""
+    if per_class <= 0:
+        return val_images, val_labels
+    from hallm.data.imagenet import stratified_subsample
+
+    idx = stratified_subsample(val_labels, per_class, seed)
+    return np.ascontiguousarray(val_images[idx]), val_labels[idx]
 
 
 def _best_from_metrics(metrics_path: Path) -> tuple[float | None, int | None]:
@@ -112,12 +124,15 @@ def run_one_vision(cfg_path, data_dir, results_dir, device, stop_step: int | Non
     val_images = load_images(data_dir / "val.bin")
     val_labels = load_labels(data_dir / "val_labels.npy")
 
+    periodic_images, periodic_labels = _split_for_periodic_eval(
+        val_images, val_labels, train_cfg.eval_subsample, train_cfg.seed)
     set_seed(train_cfg.seed, train_cfg.deterministic)
     model = ViT(model_cfg)
-    print(f"[run ] {name}: {'resuming' if resume.exists() else 'fresh'} on {device}")
+    print(f"[run ] {name}: {'resuming' if resume.exists() else 'fresh'} on {device}"
+          f" | periodic eval on {len(periodic_images)} of {len(val_images)} val images")
     train_vision(model, train_cfg, images, labels, device=device, progress=True,
-                 resume_path=str(resume), stop_step=stop_step, val_images=val_images,
-                 val_labels=val_labels, metrics_path=str(out / "metrics.jsonl"))
+                 resume_path=str(resume), stop_step=stop_step, val_images=periodic_images,
+                 val_labels=periodic_labels, metrics_path=str(out / "metrics.jsonl"))
     if stop_step is not None and stop_step < train_cfg.max_steps:
         print(f"[stop] {name}: paused at step {stop_step} (resume.pt saved)")
         return PAUSED

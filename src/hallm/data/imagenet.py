@@ -81,3 +81,19 @@ def get_image_batch(
     x = (x - mean) / std
     y = torch.from_numpy(np.ascontiguousarray(labels[idx.numpy()])).to(device)
     return x, y
+
+
+def stratified_subsample(labels: np.ndarray, per_class: int, seed: int) -> np.ndarray:
+    """Indices of `per_class` images from each class, drawn once with `seed`.
+
+    Returned sorted, so scoring the subsample reads the memmap front-to-back rather than jumping
+    (at 62.97 GB the validation split does not fit in page cache). A class with fewer than
+    `per_class` members contributes all of them rather than raising.
+    """
+    rng = np.random.default_rng(seed)
+    picks = []
+    for cls in np.unique(labels):
+        members = np.flatnonzero(labels == cls)
+        take = min(per_class, len(members))
+        picks.append(rng.choice(members, size=take, replace=False))
+    return np.sort(np.concatenate(picks)).astype(np.int64)
