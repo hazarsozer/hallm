@@ -31,6 +31,8 @@ from hallm.data.imagenet import STORED, preprocess_image
 
 REPO = "benjamin-paine/imagenet-1k-128x128"
 BYTES_PER_IMAGE = 3 * STORED * STORED
+# Rows pulled from parquet at a time. Bounds each worker's Arrow footprint; see _decode_shard.
+_BATCH_ROWS = 512
 
 
 def _force_ipv4() -> None:
@@ -74,27 +76,50 @@ def _shard_counts(paths: list[Path]) -> list[int]:
 
 
 def _decode_shard(args) -> tuple[int, list[int], int]:
-    """Worker: decode one shard into `bin_path` at `offset`. Returns (shard_index, labels, n_resized)."""
+    """Worker: decode one shard into `bin_path` at `offset`. Returns (shard_index, labels, n_resized).
+
+    Two properties matter as much as correctness here, both learned the hard way on 2026-09-18 when an
+    earlier version of this function put a 30 GB desktop into swap mid-conversion:
+
+    1. **Peak memory must not scale with shard size or worker count.** `ParquetFile.read()` materialises
+       an entire 438 MB shard as an Arrow table (~1.4 GB resident once image bytes are decoded); eight
+       of those is ~11 GB. `iter_batches` streams row groups instead — these files hold 986 groups of
+       ~99 rows, so a worker's Arrow footprint stays in the low megabytes no matter how big the shard.
+    2. **The write stream must not evict everyone else's page cache.** Writing 63 GB through the page
+       cache pushes out whatever the user is running. After each flush we fsync just-written bytes and
+       `POSIX_FADV_DONTNEED` them: the pages are on disk and nothing here will read them again, so
+       dropping them costs this script nothing and leaves the cache to its owner.
+    """
     shard_index, path, bin_path, offset, limit = args
     import pyarrow.parquet as pq
     from PIL import Image
 
-    table = pq.ParquetFile(path).read()
-    images, labels_col = table.column("image"), table.column("label")
-    labels, n_resized = [], 0
+    labels, n_resized, written, done = [], 0, 0, 0
+    pf = pq.ParquetFile(path)
     with open(bin_path, "r+b") as f:
         f.seek(offset)
-        for i in range(len(images)):
-            if limit is not None and i >= limit:
+        fd = f.fileno()
+        for batch in pf.iter_batches(batch_size=_BATCH_ROWS, columns=["image", "label"]):
+            if limit is not None and done >= limit:
                 break
-            cell = images[i].as_py()
-            raw = cell["bytes"] if isinstance(cell, dict) else cell
-            img = Image.open(io.BytesIO(raw)) if isinstance(raw, (bytes, bytearray)) else raw
-            img = img.convert("RGB")
-            if img.size != (STORED, STORED):
-                n_resized += 1
-            f.write(decode_row(img).tobytes())
-            labels.append(int(labels_col[i].as_py()))
+            img_col, lab_col = batch.column("image"), batch.column("label")
+            for i in range(batch.num_rows):
+                if limit is not None and done >= limit:
+                    break
+                cell = img_col[i].as_py()
+                raw = cell["bytes"] if isinstance(cell, dict) else cell
+                img = Image.open(io.BytesIO(raw)) if isinstance(raw, (bytes, bytearray)) else raw
+                img = img.convert("RGB")
+                if img.size != (STORED, STORED):
+                    n_resized += 1
+                f.write(decode_row(img).tobytes())
+                labels.append(int(lab_col[i].as_py()))
+                done += 1
+            f.flush()
+            start = offset + written
+            written = done * BYTES_PER_IMAGE
+            os.fsync(fd)
+            os.posix_fadvise(fd, start, written - (start - offset), os.POSIX_FADV_DONTNEED)
     return shard_index, labels, n_resized
 
 
@@ -125,7 +150,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="data/in1k")
     ap.add_argument("--limit", type=int, default=None)
-    ap.add_argument("--workers", type=int, default=min(8, os.cpu_count() or 4))
+    ap.add_argument("--workers", type=int, default=2,
+                    help="Parallel shard decoders. Memory is now flat per worker (~200 MB), but each "
+                         "still drives CPU and write bandwidth; 2 keeps the machine usable while the "
+                         "conversion runs in the background.")
     ap.add_argument("--ipv4", action="store_true",
                     help="Force IPv4-only DNS resolution (this host's IPv6 route to the HF CDN "
                          "blackholes). Off by default.")
