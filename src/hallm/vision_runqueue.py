@@ -23,14 +23,42 @@ from hallm.vision_train import evaluate_top1, train_vision
 OK, PAUSED = "ok", "paused"
 
 
-def _result_row(model: ViT, model_cfg, train_cfg, name: str, top1: float, val_loss: float) -> dict:
+def _best_from_metrics(metrics_path: Path) -> tuple[float | None, int | None]:
+    """Highest periodic-eval top-1 and the step it landed on, or (None, None) if none recorded."""
+    if not metrics_path.exists():
+        return None, None
+    best, best_step = None, None
+    for line in metrics_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        # the metrics file's key is "val_top1", NOT "top1" — verified against
+        # runs/vision/V4-A0-s1337-p5k/metrics.jsonl before this plan was written
+        t = row.get("val_top1")
+        if t is not None and (best is None or t > best):
+            best, best_step = float(t), int(row.get("step", -1))
+    return best, best_step
+
+
+def _result_row(model: ViT, model_cfg, train_cfg, name: str, top1: float, val_loss: float,
+                top1_best: float | None = None, best_step: int | None = None,
+                n_train: int | None = None) -> dict:
     nonemb = model.num_parameters(non_embedding=True)
     return {
         "run": name,
         "arm": model_cfg.arm,
         "dataset": train_cfg.dataset,
+        "corpus": train_cfg.dataset,
         "n_classes": model_cfg.n_classes,
         "top1": round(top1, 6),
+        "top1_best": None if top1_best is None else round(top1_best, 6),
+        "best_step": best_step,
+        # passes = how many times the run sweeps its corpus; the axis spec 2026-09-18 §1 found
+        # unmatched between the ladder (10.31) and the first vision pass (101.03).
+        "passes": None if not n_train else round(train_cfg.max_steps * train_cfg.batch_size / n_train, 3),
         "val_loss": round(val_loss, 4),
         "n_layer": model_cfg.n_layer,
         "non_embedding_params_M": round(nonemb / 1e6, 4),
@@ -101,7 +129,10 @@ def run_one_vision(cfg_path, data_dir, results_dir, device, stop_step: int | Non
         {"model": model.state_dict(), "model_cfg": asdict(model_cfg), "train_cfg": asdict(train_cfg)},
         out / f"{name}.pt",
     )
-    write_run_result(results_dir, _result_row(model, model_cfg, train_cfg, name, top1, val_loss))
+    top1_best, best_step = _best_from_metrics(out / "metrics.jsonl")
+    write_run_result(results_dir, _result_row(model, model_cfg, train_cfg, name, top1, val_loss,
+                                              top1_best=top1_best, best_step=best_step,
+                                              n_train=len(images)))
     print(f"[done] {name}: top1 {top1:.4f} | val_loss {val_loss:.4f}")
     return OK
 

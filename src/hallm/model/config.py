@@ -15,7 +15,7 @@ Mapping (ROADMAP.md §3, roadmap/03-architecture.md):
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace as _dc_replace
 
 
 # Transposed loop (spec 2026-09-15): how a looped arm's odd passes add their transposed update.
@@ -127,11 +127,11 @@ def arm_config(base: ModelConfig, arm: str) -> ModelConfig:
     """
     m = _LOOPED.fullmatch(arm)
     if m:
-        return replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)),
-                       loop_pass2=_PASS2_FOR_SUFFIX.get(m.group(2)))
+        return _dc_replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)),
+                           loop_pass2=_PASS2_FOR_SUFFIX.get(m.group(2)))
     if arm not in ARMS:
         raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)} or A1u<k>[t|n|a]")
-    return replace(base, **ARMS[arm], n_unique_blocks=None, loop_pass2=None)
+    return _dc_replace(base, **ARMS[arm], n_unique_blocks=None, loop_pass2=None)
 
 
 # --- candidate shapes (roadmap/03-architecture.md §1); pick the size in Term 2 after a pilot ---
@@ -198,3 +198,8 @@ VSHAPES: dict[str, VisionConfig] = {
     "v8": VisionConfig(vocab_size=1, block_size=50, n_embd=512, n_layer=8, n_head=8,
                        tie_embeddings=False),
 }
+
+# ImageNet-1k arms (spec 2026-09-18 §2): derived with dataclasses.replace rather than written out,
+# so the only field that can ever differ from the 100-class arms is the class count.
+VSHAPES["v4-in1k"] = _dc_replace(VSHAPES["v4"], n_classes=1000)
+VSHAPES["v8-in1k"] = _dc_replace(VSHAPES["v8"], n_classes=1000)
