@@ -40,7 +40,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V8-A0-s1337-in1k | A0 | 8 | 25.17 | 40.5 | 2.9765 | imagenet-1k | 9.991 | 40.4 | 49000 |  |
 | V8-A2-s1337-in1k | A2 | 8 | 12.59 | 31.3 | 3.4358 | imagenet-1k | 9.991 | 31.1 | 49999 |  |
 | V8-A1u4-s1337-in1k | A1u4 | 8 | 12.59 | 41.4 | 2.8929 | imagenet-1k | 9.991 | 41.6 | 49999 |  |
-| V8-A1u4t | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A1u4t-s1337-in1k | A1u4t | 8 | 12.59 | 37.9 | 3.0865 | imagenet-1k | 9.991 | 37.6 | 49000 |  |
 
 #### Pairs
 
@@ -49,7 +49,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V8-A1u4 | V4-A0 | iso-storage | 41.4 / 39.3 | +2.1 |  |
 | V8-A2 | V4-A0 | iso-storage | 31.3 / 39.3 | -7.9 |  |
 | V8-A1u4 | V8-A2 | matched storage and compute | 41.4 / 31.3 | +10.0 |  |
-| V8-A1u4t | V8-A1u4 | matched storage and compute | — | — | pending |
+| V8-A1u4t | V8-A1u4 | matched storage and compute | 37.9 / 41.4 | -3.5 |  |
 
 **Depth gate (spec §3):** V8-A0 40.5 vs V4-A0 39.3 → pass — imagenet-1k
 
@@ -71,4 +71,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-18T09:04:30+00:00 from 63 run(s) -->
+<!-- built 2026-09-18T10:29:53+00:00 from 64 run(s) -->
