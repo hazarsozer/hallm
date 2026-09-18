@@ -14,11 +14,19 @@ import torch
 
 from hallm.synth.tasks import AdditionTask, BindingChainTask, PHopInductionTask, SynthProblem, SynthTask
 
-TASKS: dict[str, SynthTask] = {
-    "p_hop_induction": PHopInductionTask(),
-    "addition": AdditionTask(),
-    "binding_chain": BindingChainTask(),
+TASK_CLASSES: dict[str, type[SynthTask]] = {
+    "p_hop_induction": PHopInductionTask,
+    "addition": AdditionTask,
+    "binding_chain": BindingChainTask,
 }
+# Ready-to-use default instances, for quick/interactive use where the exact task parameters
+# (vocab_size, seq_len_margin, ...) don't matter. A config file that cares about those should
+# construct its own instance via `make_task(name, **kwargs)` instead of relying on these.
+TASKS: dict[str, SynthTask] = {name: cls() for name, cls in TASK_CLASSES.items()}
+
+
+def make_task(name: str, **kwargs) -> SynthTask:
+    return TASK_CLASSES[name](**kwargs)
 
 
 def make_problems(task: SynthTask, difficulty: int, n: int, rng: random.Random) -> list[SynthProblem]:

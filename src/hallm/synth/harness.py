@@ -93,14 +93,20 @@ def evaluate_exact_match(
     difficulty: int,
     n_problems: int,
     seed: int,
-    device: str | torch.device = "cpu",
+    device: str | torch.device | None = None,
     batch_size: int = 128,
 ) -> float:
     """Exact-match accuracy on `n_problems` freshly generated problems, greedily decoded token by
     token (teacher forcing isn't available at eval time -- the model has to actually produce every
     answer token itself, not just predict the next one given the true previous ones). Correct for
     both single-token answers (p-hop, binding-chain) and multi-token ones (addition): the loop
-    just runs `answer_len` times, trivially once for the single-token tasks."""
+    just runs `answer_len` times, trivially once for the single-token tasks.
+
+    `device` defaults to the model's own device (not "cpu") -- a model trained on CUDA and then
+    evaluated with no device argument would otherwise crash on a device mismatch rather than just
+    working, which is exactly the footgun a default should avoid."""
+    if device is None:
+        device = next(model.parameters()).device
     rng = random.Random(seed)
     was_training = model.training
     model.eval()
