@@ -38,7 +38,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 |---|---|---|---|---|---|---|---|---|---|---|
 | V4-A0-s1337-in1k | A0 | 4 | 12.59 | 39.3 | 2.9872 | imagenet-1k | 9.991 | 39.6 | 49000 |  |
 | V8-A0-s1337-in1k | A0 | 8 | 25.17 | 40.5 | 2.9765 | imagenet-1k | 9.991 | 40.4 | 49000 |  |
-| V8-A2 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A2-s1337-in1k | A2 | 8 | 12.59 | 31.3 | 3.4358 | imagenet-1k | 9.991 | 31.1 | 49999 |  |
 | V8-A1u4 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 | V8-A1u4t | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 
@@ -47,13 +47,13 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | a | b | kind | top-1 a / b | Δ points | note |
 |---|---|---|---|---|---|
 | V8-A1u4 | V4-A0 | iso-storage | — | — | pending |
-| V8-A2 | V4-A0 | iso-storage | — | — | pending |
+| V8-A2 | V4-A0 | iso-storage | 31.3 / 39.3 | -7.9 |  |
 | V8-A1u4 | V8-A2 | matched storage and compute | — | — | pending |
 | V8-A1u4t | V8-A1u4 | matched storage and compute | — | — | pending |
 
 **Depth gate (spec §3):** V8-A0 40.5 vs V4-A0 39.3 → pass — imagenet-1k
 
-**Follow-up seed rule (spec §3):** pending — imagenet-1k
+**Follow-up seed rule (spec §3):** |Δ| = 7.94 points → triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4 — imagenet-1k
 
 ## Protocol
 
@@ -71,4 +71,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-18T05:00:38+00:00 from 61 run(s) -->
+<!-- built 2026-09-18T07:03:20+00:00 from 62 run(s) -->
