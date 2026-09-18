@@ -17,7 +17,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V8-A1u4-s1337 | A1u4 | 8 | 12.59 | 47.4 | 2.6955 | imagenet-100 | — | — | — |  |
 | V8-A1u4t-s1337 | A1u4t | 8 | 12.59 | 47.3 | 2.6737 | imagenet-100 | — | — | — |  |
 
-## Pairs
+#### Pairs
 
 | a | b | kind | top-1 a / b | Δ points | note |
 |---|---|---|---|---|---|
@@ -26,9 +26,34 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V8-A1u4 | V8-A2 | matched storage and compute | 47.4 / 47.3 | +0.0 |  |
 | V8-A1u4t | V8-A1u4 | matched storage and compute | 47.3 / 47.4 | -0.1 |  |
 
-**Depth gate (spec §3):** V8-A0 47.0 vs V4-A0 48.1 → **FAIL — the setup cannot say anything about sharing**
+**Depth gate (spec §3):** V8-A0 47.0 vs V4-A0 48.1 → **FAIL — the setup cannot say anything about sharing** — imagenet-100
 
-**Follow-up seed rule (spec §3):** |Δ| = 0.82 points → not triggered — reported as no difference detected at 1 seed
+**Follow-up seed rule (spec §3):** |Δ| = 0.82 points → not triggered — reported as no difference detected at 1 seed — imagenet-100
+
+### imagenet-1k — —-way, — passes over the corpus
+
+> 1 seed (1337), descriptive. Absolute accuracies are NOT comparable across blocks: the blocks differ in corpus, class count and pass count. Only arm gaps within a block are claimed.
+
+| run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes | top-1 best | best step | flag |
+|---|---|---|---|---|---|---|---|---|---|---|
+| V4-A0 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A0 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A2 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A1u4 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A1u4t | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+
+#### Pairs
+
+| a | b | kind | top-1 a / b | Δ points | note |
+|---|---|---|---|---|---|
+| V8-A1u4 | V4-A0 | iso-storage | — | — | pending |
+| V8-A2 | V4-A0 | iso-storage | — | — | pending |
+| V8-A1u4 | V8-A2 | matched storage and compute | — | — | pending |
+| V8-A1u4t | V8-A1u4 | matched storage and compute | — | — | pending |
+
+**Depth gate (spec §3):** pending — imagenet-1k
+
+**Follow-up seed rule (spec §3):** pending — imagenet-1k
 
 ## Protocol
 
@@ -46,4 +71,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-18T01:48:24+00:00 from 59 run(s) -->
+<!-- built 2026-09-18T01:55:41+00:00 from 59 run(s) -->

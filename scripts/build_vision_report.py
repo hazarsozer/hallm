@@ -161,14 +161,67 @@ def _uniform_or_mixed(block_rows: list[dict], field: str) -> str:
     return "—" if value is None else value
 
 
+def _corpus_gate_section(corpus: str, seen: dict[str, dict[str, dict]]) -> list[str]:
+    """Pairs / depth gate / follow-up-seed rule (spec 2026-09-16 §3), computed for `corpus` alone.
+
+    Originally a single global computation reading ImageNet-100 rows only (via a helper hardcoded
+    to `seen.get(name, {}).get("imagenet-100")`), so an ImageNet-1k pass could land any amount of
+    data and still never produce its own depth gate — the one decision that pass exists to make
+    (follow-up, 2026-09-18). Generalised to run once per corpus instead: each call reads only that
+    corpus's rows out of `seen`, so two corpora's arms — the same arm names in both — never mix.
+
+    Degrades to "pending" (never raises) when the rows this corpus needs haven't landed, which is
+    the normal state for a whole corpus (e.g. imagenet-1k) before its first result arrives."""
+
+    def row(name: str) -> dict | None:
+        return seen.get(name, {}).get(corpus)
+
+    out = ["", "#### Pairs", "", "| a | b | kind | top-1 a / b | Δ points | note |",
+          "|---|---|---|---|---|---|"]
+    for a, b, kind in PAIRS:
+        ra, rb = row(a), row(b)
+        if ra is None or rb is None:
+            out.append(f"| {a} | {b} | {kind} | — | — | pending |")
+            continue
+        delta = 100 * (ra["top1"] - rb["top1"])
+        note = ""
+        if abs(ra["non_embedding_params_M"] - rb["non_embedding_params_M"]) > 0.01:
+            note = "**storage mismatch** — the pairing is not iso-storage"
+        out.append(f"| {a} | {b} | {kind} | {100 * ra['top1']:.1f} / {100 * rb['top1']:.1f} | "
+                   f"{delta:+.1f} | {note} |")
+
+    # Corpus name is appended AFTER the fixed "(spec §3):** ..." prefix/verdict, not woven into
+    # it, so a single-corpus reader (or a pre-existing test) that only expects the historical
+    # ImageNet-100-only wording still finds it verbatim as a leading substring of this line —
+    # while a reader of the full line always sees which corpus it is about.
+    deep, shallow = row("V8-A0"), row("V4-A0")
+    if deep and shallow:
+        ok = deep["top1"] > shallow["top1"]
+        verdict = "pass" if ok else "**FAIL — the setup cannot say anything about sharing**"
+        out += ["", f"**Depth gate (spec §3):** V8-A0 {100 * deep['top1']:.1f} vs V4-A0 "
+                    f"{100 * shallow['top1']:.1f} → {verdict} — {corpus}"]
+    else:
+        out += ["", f"**Depth gate (spec §3):** pending — {corpus}"]
+
+    a2, v4 = row("V8-A2"), row("V4-A0")
+    if a2 and v4:
+        gap = abs(100 * (a2["top1"] - v4["top1"]))
+        # top1 is correct/N_images, so an exact 1.0-point gap (e.g. 50/5000 images) can land as
+        # 0.9999999999999953 in float — compare with a tolerance so a mathematically-exact gap
+        # always triggers regardless of how the subtraction happens to round.
+        follow = ("triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4"
+                  if gap >= 1.0 - 1e-9 else "not triggered — reported as no difference detected at 1 seed")
+        # Two decimals here (unlike the pairs table's one) so the printed number never contradicts
+        # the decision next to it — e.g. a genuine 0.96-point gap must not read as "1.0 points".
+        out += ["", f"**Follow-up seed rule (spec §3):** |Δ| = {gap:.2f} points → {follow} — {corpus}"]
+    else:
+        out += ["", f"**Follow-up seed rule (spec §3):** pending — {corpus}"]
+
+    return out
+
+
 def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict | None] | None = None) -> str:
     seen = _by_arm(rows, seed)
-
-    def im100(name: str) -> dict | None:
-        # Pairs / depth gate / follow-up-seed rule are all pre-existing, single-corpus concepts
-        # (spec 2026-09-16 §3) — they read the original ImageNet-100 pass specifically, not
-        # "whichever corpus happens to be in `seen`".
-        return seen.get(name, {}).get("imagenet-100")
 
     out = [STAMP, "# Controlled ViT study (spec 2026-09-16)", ""]
     out.append(f"ImageNet-100 @112px, one recipe across arms, **1 seed ({seed}) — descriptive only, "
@@ -192,12 +245,17 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
     # "imagenet-1k" as a corpus (see `_CORPUS_BY_SUFFIX`), so listing both explicitly — in this
     # fixed, meaningful order — rather than deriving the set from `seen` keeps block order stable
     # even before any arm has landed for a corpus. Every block lists all five ARMS regardless of
-    # how many have landed for it, missing ones rendering as "pending" below (unchanged from
-    # before this fix); with no rows at all, only "imagenet-100" is shown, matching prior behavior.
+    # how many have landed for it, missing ones rendering as "pending" below.
+    #
+    # Both corpora ALWAYS get a block, landed or not (follow-up fix, 2026-09-18): the previous
+    # `landed_corpora`-gated fallback (`[c for c in corpus_order if c in landed_corpora] or
+    # ["imagenet-100"]`) only fell back to imagenet-100 when `seen` was entirely empty — so
+    # imagenet-1k rows landing with no imagenet-100 row present would have OMITTED the
+    # imagenet-100 block outright rather than rendering it "pending" like every other not-yet-
+    # landed thing in this report. imagenet-1k sits in exactly that not-yet-landed state until its
+    # first result arrives, and a human reads this file while it does.
     corpus_order = ["imagenet-100", "imagenet-1k"]
-    landed_corpora = {c for arm_rows in seen.values() for c in arm_rows}
-    corpora = [c for c in corpus_order if c in landed_corpora] or ["imagenet-100"]
-    blocks: dict[str, list[str]] = {corpus: list(ARMS) for corpus in corpora}
+    blocks: dict[str, list[str]] = {corpus: list(ARMS) for corpus in corpus_order}
 
     table_header = ["| run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes "
                     "| top-1 best | best step | flag |",
@@ -226,42 +284,11 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
                        f"{passes_cell} | {top1_best_cell} | {best_step_cell} | "
                        f"{overfit_flag(r['top1'], top1_best)} |")
 
-    out += ["", "## Pairs", "", "| a | b | kind | top-1 a / b | Δ points | note |",
-            "|---|---|---|---|---|---|"]
-    for a, b, kind in PAIRS:
-        ra, rb = im100(a), im100(b)
-        if ra is None or rb is None:
-            out.append(f"| {a} | {b} | {kind} | — | — | pending |")
-            continue
-        delta = 100 * (ra["top1"] - rb["top1"])
-        note = ""
-        if abs(ra["non_embedding_params_M"] - rb["non_embedding_params_M"]) > 0.01:
-            note = "**storage mismatch** — the pairing is not iso-storage"
-        out.append(f"| {a} | {b} | {kind} | {100 * ra['top1']:.1f} / {100 * rb['top1']:.1f} | "
-                   f"{delta:+.1f} | {note} |")
-
-    deep, shallow = im100("V8-A0"), im100("V4-A0")
-    if deep and shallow:
-        ok = deep["top1"] > shallow["top1"]
-        verdict = "pass" if ok else "**FAIL — the setup cannot say anything about sharing**"
-        out += ["", f"**Depth gate (spec §3):** V8-A0 {100 * deep['top1']:.1f} vs V4-A0 "
-                    f"{100 * shallow['top1']:.1f} → {verdict}"]
-    else:
-        out += ["", "**Depth gate (spec §3):** pending"]
-
-    a2, v4 = im100("V8-A2"), im100("V4-A0")
-    if a2 and v4:
-        gap = abs(100 * (a2["top1"] - v4["top1"]))
-        # top1 is correct/N_images, so an exact 1.0-point gap (e.g. 50/5000 images) can land as
-        # 0.9999999999999953 in float — compare with a tolerance so a mathematically-exact gap
-        # always triggers regardless of how the subtraction happens to round.
-        follow = ("triggered — run seeds 1338/1339 for V8-A2, V4-A0 and V8-A1u4"
-                  if gap >= 1.0 - 1e-9 else "not triggered — reported as no difference detected at 1 seed")
-        # Two decimals here (unlike the pairs table's one) so the printed number never contradicts
-        # the decision next to it — e.g. a genuine 0.96-point gap must not read as "1.0 points".
-        out += ["", f"**Follow-up seed rule (spec §3):** |Δ| = {gap:.2f} points → {follow}"]
-    else:
-        out += ["", "**Follow-up seed rule (spec §3):** pending"]
+        # Pairs / depth gate / follow-up-seed rule rendered directly beneath this corpus's own
+        # block, computed only from this corpus's rows (see `_corpus_gate_section`) — so the
+        # ImageNet-1k pass gets its own depth gate instead of the ImageNet-100 one speaking for
+        # both passes.
+        out += _corpus_gate_section(corpus, seen)
 
     out += _protocol_section(manifests or {})
     return "\n".join(out) + "\n"

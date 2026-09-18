@@ -305,3 +305,98 @@ def test_block_header_reports_mixed_when_n_classes_disagrees_within_a_block():
     }
     text = bvr.vision_report([row_a, row_b])
     assert "mixed" in text
+
+
+# --- follow-up: the depth gate / pairs / follow-up-seed trigger, generalised per corpus -------
+#
+# Before this follow-up, `vision_report` computed the depth gate, pairs and follow-up-seed
+# trigger exactly once, through a helper (`im100()`) hardcoded to read ImageNet-100 rows only —
+# so no amount of ImageNet-1k data landing could ever produce the ImageNet-1k depth gate, the
+# single decision the ImageNet-1k pass exists to make. These tests push both corpora through the
+# real `vision_report()` path and assert each corpus gets its own, independently-computed and
+# independently-labelled verdict.
+
+def _row(run: str, arm: str, corpus: str, top1: float, *, n_layer: int) -> dict:
+    return {
+        "run": run, "arm": arm, "dataset": corpus, "n_classes": 100 if corpus == "imagenet-100" else 1000,
+        "n_layer": n_layer, "non_embedding_params_M": 12.5875, "nonemb_weight_bytes_bf16": 25175040,
+        "top1": top1, "total_params_M": 13.0587, "val_loss": 2.5,
+    }
+
+
+def _block(text: str, corpus: str) -> str:
+    """Slice out just one corpus's block (up to the next `### ` heading or end of text)."""
+    start = text.index(f"### {corpus}")
+    rest = text[start + len(f"### {corpus}"):]
+    nxt = rest.find("\n### ")
+    return rest if nxt == -1 else rest[:nxt]
+
+
+def _line_containing(block: str, needle: str) -> str:
+    lines = [l for l in block.splitlines() if needle in l]
+    assert lines, f"no line containing {needle!r} in block:\n{block}"
+    return lines[0]
+
+
+def test_per_corpus_depth_gate_renders_independently_with_opposite_outcomes():
+    """Two corpora with OPPOSITE depth-gate outcomes must each render their own correct verdict —
+    not one corpus's numbers leaking into the other's line, and not a single global verdict."""
+    bvr = _load_bvr()
+
+    rows = [
+        # imagenet-100: V8-A0 (deeper) BEATS V4-A0 -> gate passes
+        _row("V4-A0-s1337", "A0", "imagenet-100", 0.40, n_layer=4),
+        _row("V8-A0-s1337", "A0", "imagenet-100", 0.45, n_layer=8),
+        # imagenet-1k: V8-A0 (deeper) LOSES to V4-A0 -> gate fails
+        _row("V4-A0-s1337-in1k", "A0", "imagenet-1k", 0.30, n_layer=4),
+        _row("V8-A0-s1337-in1k", "A0", "imagenet-1k", 0.25, n_layer=8),
+    ]
+    text = bvr.vision_report(rows)
+
+    block_100 = _block(text, "imagenet-100")
+    block_1k = _block(text, "imagenet-1k")
+
+    gate_100 = _line_containing(block_100, "Depth gate")
+    gate_1k = _line_containing(block_1k, "Depth gate")
+
+    assert "45.0" in gate_100 and "40.0" in gate_100 and "FAIL" not in gate_100
+    assert "imagenet-100" in gate_100
+    assert "30.0" in gate_1k and "25.0" in gate_1k and "FAIL" in gate_1k
+    assert "imagenet-1k" in gate_1k
+
+
+def test_corpus_with_no_rows_renders_pending_gate_without_crashing():
+    """imagenet-1k before its first result lands: zero in1k rows must still produce a labelled,
+    non-crashing 'pending' gate and follow-up-seed line for that corpus rather than the block
+    vanishing or the call raising."""
+    bvr = _load_bvr()
+
+    rows = [_row("V4-A0-s1337", "A0", "imagenet-100", 0.4814, n_layer=4)]   # no in1k rows at all
+    text = bvr.vision_report(rows)   # must not raise
+
+    assert "### imagenet-1k" in text
+    block_1k = _block(text, "imagenet-1k")
+    gate_1k = _line_containing(block_1k, "Depth gate")
+    follow_1k = _line_containing(block_1k, "Follow-up seed rule")
+    assert "pending" in gate_1k and "imagenet-1k" in gate_1k
+    assert "pending" in follow_1k and "imagenet-1k" in follow_1k
+
+
+def test_imagenet100_gate_and_values_unchanged_by_percorpus_refactor():
+    """The five pre-existing ImageNet-100 rows must keep rendering their original values and
+    their original FAIL verdict (V8-A0 46.96 < V4-A0 48.14) once the gate becomes per-corpus."""
+    bvr = _load_bvr()
+
+    rows = [
+        _row("V4-A0-s1337", "A0", "imagenet-100", 0.4814, n_layer=4),
+        _row("V8-A0-s1337", "A0", "imagenet-100", 0.4696, n_layer=8),
+        _row("V8-A2-s1337", "A2", "imagenet-100", 0.4732, n_layer=8),
+        _row("V8-A1u4-s1337", "A1u4", "imagenet-100", 0.4736, n_layer=8),
+        _row("V8-A1u4t-s1337", "A1u4t", "imagenet-100", 0.4728, n_layer=8),
+    ]
+    text = bvr.vision_report(rows)
+
+    block_100 = _block(text, "imagenet-100")
+    gate_100 = _line_containing(block_100, "Depth gate")
+    assert "47.0" in gate_100 and "48.1" in gate_100
+    assert "FAIL" in gate_100 and "imagenet-100" in gate_100
