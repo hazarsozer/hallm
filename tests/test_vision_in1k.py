@@ -214,3 +214,94 @@ def test_get_image_batch_train_path_unaffected_by_prefetch(tmp_path):
     g2 = torch.Generator().manual_seed(42)
     x2, y2 = get_image_batch(images, labels, 8, 112, "cpu", g2, train=True)
     assert torch.equal(x1, x2) and torch.equal(y1, y2)
+
+
+def _load_bvr():
+    """Load scripts/build_vision_report.py as a module (mirrors the dance the overfit_flag test
+    above already uses — the script is not a package member, so it has to be loaded by path)."""
+    import importlib.util
+    import sys
+
+    spec = importlib.util.spec_from_file_location(
+        "bvr", Path("scripts/build_vision_report.py"))
+    bvr = importlib.util.module_from_spec(spec)
+    sys.modules["bvr"] = bvr
+    spec.loader.exec_module(bvr)
+    return bvr
+
+
+def test_two_corpus_passes_for_same_arm_both_survive_into_their_own_blocks():
+    """Critical regression test (review finding, 2026-09-18): commit 7f560c3 added per-corpus
+    blocks to vision_report(), but `_by_arm` — untouched by that commit — (1) filters rows with
+    `run.endswith(f"-s{seed}")`, which drops every `-in1k` row outright since real in1k run ids
+    end in `-in1k`, not `-s1337`, and (2) even once that filter is relaxed, keys `seen` by
+    `run.rsplit("-s", 1)[0]`, which maps BOTH `V4-A0-s1337` and `V4-A0-s1337-in1k` to the same key
+    `"V4-A0"` — so the dict structurally cannot hold both corpora's row for one arm at once.
+
+    This pushes realistically-shaped rows for both corpora, same arm (V4-A0), through the real
+    `vision_report()` path and asserts both land in their own block rather than one clobbering the
+    other."""
+    bvr = _load_bvr()
+
+    in100_row = {
+        "run": "V4-A0-s1337", "arm": "A0", "dataset": "imagenet-100", "n_classes": 100,
+        "n_layer": 4, "non_embedding_params_M": 12.5875, "nonemb_weight_bytes_bf16": 25175040,
+        "top1": 0.4814, "total_params_M": 13.0587, "val_loss": 2.5436,
+    }
+    in1k_row = {
+        "run": "V4-A0-s1337-in1k", "arm": "A0", "dataset": "imagenet-1k", "corpus": "imagenet-1k",
+        "n_classes": 1000, "n_layer": 4, "non_embedding_params_M": 12.5875,
+        "nonemb_weight_bytes_bf16": 25175040, "top1": 0.41, "top1_best": 0.42, "best_step": 48000,
+        "passes": 9.99, "total_params_M": 13.0587, "val_loss": 2.9,
+    }
+    text = bvr.vision_report([in100_row, in1k_row])
+
+    assert "### imagenet-100" in text
+    assert "### imagenet-1k" in text
+    i100_idx = text.index("### imagenet-100")
+    i1k_idx = text.index("### imagenet-1k")
+    block_100 = text[i100_idx:i1k_idx]
+    block_1k = text[i1k_idx:]
+
+    assert "V4-A0-s1337 " in block_100 and "48.1" in block_100
+    assert "V4-A0-s1337-in1k" in block_1k and "41.0" in block_1k
+    # exactly what a `seen` keying collision would break: each block must carry only its own row
+    assert "V4-A0-s1337-in1k" not in block_100
+    assert "V4-A0-s1337 " not in block_1k
+
+
+def test_p5k_probe_rows_are_excluded_from_the_report():
+    """`-p5k` rows are diagnostic probes (spec 2026-09-18 §7), excluded by spec regardless of
+    which directory they happen to live in. Real ones live under results/probes/ rather than
+    results/runs/, but the parse itself — not directory layout — must be what keeps them out."""
+    bvr = _load_bvr()
+
+    p5k_row = {
+        "run": "V8-A1u4-s1337-p5k", "arm": "A1u4", "dataset": "imagenet-100", "n_classes": 100,
+        "n_layer": 8, "non_embedding_params_M": 12.5875, "nonemb_weight_bytes_bf16": 25175040,
+        "top1": 0.99, "total_params_M": 13.0587, "val_loss": 0.01,
+    }
+    text = bvr.vision_report([p5k_row])
+    assert "V8-A1u4-s1337-p5k" not in text
+    assert "99.0" not in text
+
+
+def test_block_header_reports_mixed_when_n_classes_disagrees_within_a_block():
+    """Minor finding (review, 2026-09-18): the per-block header used to read n_classes/passes off
+    one arbitrary sample row. Two rows landing in the same corpus block with disagreeing
+    n_classes must render "mixed" in the header, not silently print one arm's value as if it
+    applied to the whole block."""
+    bvr = _load_bvr()
+
+    row_a = {
+        "run": "V4-A0-s1337", "arm": "A0", "dataset": "imagenet-100", "n_classes": 100,
+        "n_layer": 4, "non_embedding_params_M": 12.5875, "nonemb_weight_bytes_bf16": 25175040,
+        "top1": 0.4814, "total_params_M": 13.0587, "val_loss": 2.5436,
+    }
+    row_b = {
+        "run": "V8-A0-s1337", "arm": "A0", "dataset": "imagenet-100", "n_classes": 57,
+        "n_layer": 8, "non_embedding_params_M": 25.17, "nonemb_weight_bytes_bf16": 50340000,
+        "top1": 0.47, "total_params_M": 26.0, "val_loss": 2.77,
+    }
+    text = bvr.vision_report([row_a, row_b])
+    assert "mixed" in text

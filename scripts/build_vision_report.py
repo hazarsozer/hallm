@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -40,21 +41,56 @@ def overfit_flag(top1: float, top1_best: float | None, threshold: float = 0.01) 
     return "still overfitting" if (top1_best - top1) > threshold else ""
 
 
-def _by_arm(rows: list[dict], seed: int) -> dict[str, dict]:
-    """Index vision rows by arm name (run id minus the -s<seed> suffix), keeping only rows for
-    `seed`.
+# run ids look like `<arm>-s<seed>` (ImageNet-100, e.g. `V4-A0-s1337`) or `<arm>-s<seed>-in1k`
+# (ImageNet-1k, e.g. `V4-A0-s1337-in1k`) — arm and seed are always present, an optional single
+# alphanumeric suffix comes after the seed.
+_RUN_ID_RE = re.compile(r"^(?P<arm>.+)-s(?P<seed>\d+)(?:-(?P<suffix>[A-Za-z0-9]+))?$")
+
+# Suffix -> corpus for the two passes this report covers. `None` (no suffix) is the original
+# ImageNet-100 pass; `"in1k"` is the new ImageNet-1k pass. Any OTHER suffix — e.g. `-p5k`
+# diagnostic probe runs (spec 2026-09-18 §7, excluded by spec), or `-fw`/`-d360`/`-lr2x` ablations
+# that exist elsewhere in this repo's run ids — is not one of these two report corpora, so
+# `_parse_run_id` returns None for it rather than guessing. This is what keeps a probe row out of
+# the report even if it ever ended up in results/runs/ instead of results/probes/: the exclusion
+# comes from parsing the id, not from which directory the file happened to be read from.
+_CORPUS_BY_SUFFIX = {None: "imagenet-100", "in1k": "imagenet-1k"}
+
+
+def _parse_run_id(run: str, seed: int) -> tuple[str, str] | None:
+    """(arm, corpus) for a vision run id belonging to `seed` and one of this report's two
+    corpora — or None if `run` doesn't match `seed` or carries a suffix outside
+    `_CORPUS_BY_SUFFIX` (so it is excluded rather than merged into either block).
+
+    Arm identity and corpus both live inside the run id, so both must come out of one parse:
+    stripping only the `-s<seed>` suffix (as the previous implementation did via
+    `rsplit("-s", 1)`) maps `V4-A0-s1337` and `V4-A0-s1337-in1k` to the same arm key, which is
+    exactly the collision that let ImageNet-1k rows silently overwrite ImageNet-100 rows (or vice
+    versa, depending on dict insertion order) for the same arm."""
+    m = _RUN_ID_RE.match(run)
+    if m is None or int(m.group("seed")) != seed:
+        return None
+    corpus = _CORPUS_BY_SUFFIX.get(m.group("suffix"))
+    if corpus is None:
+        return None
+    return m.group("arm"), corpus
+
+
+def _by_arm(rows: list[dict], seed: int) -> dict[str, dict[str, dict]]:
+    """Index vision rows as {arm: {corpus: row}}, keeping only rows for `seed` and for one of
+    this report's two corpora (see `_parse_run_id`).
 
     Guards the fields the table and pairs sections read — a V-prefixed row missing one would
     otherwise raise a bare KeyError deep inside the ARMS loop and kill generation of the whole
     report rather than just that row. Real rows always carry these (write_run_result only runs
     after eval completes); this defends against a future partial or hand-edited result file.
 
-    The seed filter matters once follow-up seeds land: `read_run_results` returns rows sorted by
-    run id, so without filtering, keying purely by arm would let whichever seed sorts last (e.g.
-    s1339) silently overwrite s1337 here while the header kept naming 1337 — the report would name
-    one seed and show another's numbers. Filtering to `seed` up front makes that impossible."""
-    seen: dict[str, dict] = {}
-    suffix = f"-s{seed}"
+    Keying by (arm, corpus) rather than by arm alone is what lets the same arm carry both an
+    ImageNet-100 and an ImageNet-1k row at once — with arm-only keying (the previous
+    implementation), whichever corpus's row landed last in `rows` (which `read_run_results` sorts
+    by run id) would silently clobber the other in `seen`, and the seed filter alone additionally
+    dropped every `-in1k` row before it ever got that far. Filtering to `seed` up front also keeps
+    a later seed (e.g. s1339) from silently overwriting s1337 while the header still names 1337."""
+    seen: dict[str, dict[str, dict]] = {}
     for r in rows:
         if not r["run"].startswith("V"):
             continue
@@ -63,9 +99,11 @@ def _by_arm(rows: list[dict], seed: int) -> dict[str, dict]:
             raise ValueError(
                 f"vision row {r['run']!r} missing required field(s): {', '.join(missing)} "
                 "— partial or hand-edited result file?")
-        if not r["run"].endswith(suffix):
+        parsed = _parse_run_id(r["run"], seed)
+        if parsed is None:
             continue
-        seen[r["run"].rsplit("-s", 1)[0]] = r
+        arm, corpus = parsed
+        seen.setdefault(arm, {})[corpus] = r
     return seen
 
 
@@ -106,8 +144,32 @@ def _protocol_section(manifests: dict[str, dict | None]) -> list[str]:
     return out
 
 
+def _uniform_or_mixed(block_rows: list[dict], field: str) -> str:
+    """The block header's `field` value if every landed row in the block agrees, `"mixed"` if
+    they disagree, or `"—"` if no row has landed yet (or none carries the field).
+
+    Guards against silently reporting one arbitrary arm's value as if it applied to the whole
+    block (Minor finding, review 2026-09-18) — e.g. a block whose arms disagree on `n_classes`
+    would previously print whichever row happened to be `next()`-ed first as if it spoke for the
+    entire block."""
+    if not block_rows:
+        return "—"
+    values = {r.get(field) for r in block_rows}
+    if len(values) > 1:
+        return "mixed"
+    value = next(iter(values))
+    return "—" if value is None else value
+
+
 def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict | None] | None = None) -> str:
     seen = _by_arm(rows, seed)
+
+    def im100(name: str) -> dict | None:
+        # Pairs / depth gate / follow-up-seed rule are all pre-existing, single-corpus concepts
+        # (spec 2026-09-16 §3) — they read the original ImageNet-100 pass specifically, not
+        # "whichever corpus happens to be in `seen`".
+        return seen.get(name, {}).get("imagenet-100")
+
     out = [STAMP, "# Controlled ViT study (spec 2026-09-16)", ""]
     out.append(f"ImageNet-100 @112px, one recipe across arms, **1 seed ({seed}) — descriptive only, "
                "no verdict is claimed**. Δ is a top-1 point difference; positive means the first "
@@ -126,28 +188,31 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
     )
     # Group arms by corpus (spec 2026-09-18 §7): the two passes run the same five arms over
     # different corpora and are not comparable to each other, so each corpus gets its own labelled
-    # block rather than one shared table. Rows written before this pass carry no `corpus` field at
-    # all — they fall back to "imagenet-100", the only corpus that existed then.
-    blocks: dict[str, list[str]] = {}
-    for name in ARMS:
-        r = seen.get(name)
-        corpus = (r.get("corpus") or "imagenet-100") if r is not None else "imagenet-100"
-        blocks.setdefault(corpus, []).append(name)
+    # block rather than one shared table. `_by_arm` only ever returns "imagenet-100" or
+    # "imagenet-1k" as a corpus (see `_CORPUS_BY_SUFFIX`), so listing both explicitly — in this
+    # fixed, meaningful order — rather than deriving the set from `seen` keeps block order stable
+    # even before any arm has landed for a corpus. Every block lists all five ARMS regardless of
+    # how many have landed for it, missing ones rendering as "pending" below (unchanged from
+    # before this fix); with no rows at all, only "imagenet-100" is shown, matching prior behavior.
+    corpus_order = ["imagenet-100", "imagenet-1k"]
+    landed_corpora = {c for arm_rows in seen.values() for c in arm_rows}
+    corpora = [c for c in corpus_order if c in landed_corpora] or ["imagenet-100"]
+    blocks: dict[str, list[str]] = {corpus: list(ARMS) for corpus in corpora}
 
     table_header = ["| run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes "
                     "| top-1 best | best step | flag |",
                    "|---|---|---|---|---|---|---|---|---|---|---|"]
     for corpus, names in blocks.items():
-        sample = next((seen[n] for n in names if seen.get(n) is not None), None)
-        n_classes = sample.get("n_classes", "—") if sample is not None else "—"
-        passes_header = "—" if sample is None or sample.get("passes") is None else sample["passes"]
+        block_rows = [seen[n][corpus] for n in names if corpus in seen.get(n, {})]
+        n_classes = _uniform_or_mixed(block_rows, "n_classes")
+        passes_header = _uniform_or_mixed(block_rows, "passes")
         out += ["", f"### {corpus} — {n_classes}-way, {passes_header} passes over the corpus", "",
                "> 1 seed (1337), descriptive. Absolute accuracies are NOT comparable across "
                "blocks: the blocks differ in corpus, class count and pass count. Only arm gaps "
                "within a block are claimed."]
         out += ["", *table_header]
         for name in names:
-            r = seen.get(name)
+            r = seen.get(name, {}).get(corpus)
             if r is None:
                 out.append(f"| {name} | — | — | — | pending | pending | {corpus} | — | — | — | |")
                 continue
@@ -164,7 +229,7 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
     out += ["", "## Pairs", "", "| a | b | kind | top-1 a / b | Δ points | note |",
             "|---|---|---|---|---|---|"]
     for a, b, kind in PAIRS:
-        ra, rb = seen.get(a), seen.get(b)
+        ra, rb = im100(a), im100(b)
         if ra is None or rb is None:
             out.append(f"| {a} | {b} | {kind} | — | — | pending |")
             continue
@@ -175,7 +240,7 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
         out.append(f"| {a} | {b} | {kind} | {100 * ra['top1']:.1f} / {100 * rb['top1']:.1f} | "
                    f"{delta:+.1f} | {note} |")
 
-    deep, shallow = seen.get("V8-A0"), seen.get("V4-A0")
+    deep, shallow = im100("V8-A0"), im100("V4-A0")
     if deep and shallow:
         ok = deep["top1"] > shallow["top1"]
         verdict = "pass" if ok else "**FAIL — the setup cannot say anything about sharing**"
@@ -184,7 +249,7 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
     else:
         out += ["", "**Depth gate (spec §3):** pending"]
 
-    a2, v4 = seen.get("V8-A2"), seen.get("V4-A0")
+    a2, v4 = im100("V8-A2"), im100("V4-A0")
     if a2 and v4:
         gap = abs(100 * (a2["top1"] - v4["top1"]))
         # top1 is correct/N_images, so an exact 1.0-point gap (e.g. 50/5000 images) can land as
