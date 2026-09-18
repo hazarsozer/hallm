@@ -261,8 +261,8 @@ class BindingChainTask:
         for i, slot in enumerate(var_slots):
             if i > 0:
                 tokens.append(self.SEMI)
-            value_token = const if i == 0 else self._var_token(var_slots[i - 1])
-            tokens += [self._var_token(slot), self.EQ, value_token]
+            bound_value = const if i == 0 else self._var_token(var_slots[i - 1])
+            tokens += [self._var_token(slot), self.EQ, bound_value]
         tokens += [self.SEMI, self._var_token(var_slots[-1]), self.QMARK]
 
         return SynthProblem(tokens=tokens + [const], answer_start=len(tokens))
