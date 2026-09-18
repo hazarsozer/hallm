@@ -1,0 +1,16 @@
+{
+  "repo": "benjamin-paine/imagenet-1k-128x128",
+  "revision": "dd3adfd6ecfb3ef3ae26205733bf5d9d5410643b",
+  "stored_size": 128,
+  "counts": {
+    "train": 1281167,
+    "validation": 50000
+  },
+  "n_classes": 1000,
+  "workers": 2,
+  "resized_at_prepare": {
+    "train": 0,
+    "validation": 0
+  },
+  "preprocess": "passthrough when already 128x128, else resize shorter side then center crop, uint8 CHW"
+}

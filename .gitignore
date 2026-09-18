@@ -33,6 +33,8 @@ data/imagenette2-160.tgz
 .loop/uv_sync.log
 /runs_iso*/
 runs*.log
+prep-*.log
+prefetch-*.log
 .train_pid
 
 # Claude worktrees (session isolation)
@@ -51,3 +53,6 @@ runs*.log
 # ImageNet-100 uint8 memmaps (6.4 GB train, 245 MB val)
 data/in100/*.bin
 data/in100/*.npy
+# ImageNet-1k memmaps: 62.97 GB train + 2.46 GB val. SOURCE.json IS tracked (provenance).
+data/in1k/*.bin
+data/in1k/*.npy
