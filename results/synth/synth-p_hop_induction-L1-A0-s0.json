@@ -1,0 +1,18 @@
+{
+  "run_id": "synth-p_hop_induction-L1-A0-s0",
+  "task": "p_hop_induction",
+  "difficulty": 4,
+  "arm": "A0",
+  "n_layer": 1,
+  "n_embd": 128,
+  "vocab_size": 256,
+  "seed": 0,
+  "max_steps": 80000,
+  "accuracy": 0.548,
+  "final_train_loss": 1.5139,
+  "config_path": "configs/synth/pilot-p4-A0-L1.yaml",
+  "role": "sizing-pilot shallow reference (k=1 layer)",
+  "note": "Produced via a direct hallm.synth.harness.train_synth/evaluate_exact_match call with the exact parameters in config_path, before scripts/run_synth.py existed -- deterministic given the same seed, so re-running the config should reproduce this closely.",
+  "eval_problems_final": 1500,
+  "eval_seed": 999
+}

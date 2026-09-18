@@ -1,0 +1,25 @@
+# T-006 sizing pilot (spec 2026-09-14 §5): shallow reference (A0 @ k=1 layer), p-hop induction.
+# Locked-in pilot config: p=4 hops, d=128, vocab=256 -- chosen because the deep/shallow accuracy
+# gap here is large (~33pp) and the looped-vs-unshared validity check clears comfortably (2.7pp,
+# vs 25.6pp at p=3 and an overshot shallow at p=5). See the T-006 PR for the full calibration story.
+task: p_hop_induction
+task_kwargs:
+  vocab_size: 256
+  seq_len_margin: 4
+difficulty: 4
+arm: A0
+model:
+  n_embd: 128
+  n_layer: 1
+  n_head: 4
+  ffn_mult: 4
+  block_size: 24
+train:
+  max_steps: 80000
+  batch_size: 64
+  lr: 3.0e-3
+  warmup_steps: 500
+  seed: 0
+  eval_interval: 16000
+  eval_problems: 500
+run_id: synth-p_hop_induction-L1-A0-s0
