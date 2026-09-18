@@ -153,3 +153,64 @@ def test_in1k_configs_match_the_first_pass_except_corpus_and_classes(name):
     assert train_cfg.dataset == "imagenet-1k"
     assert train_cfg.eval_subsample == 10                          # 10 per class = 10,000 images
     assert train_cfg.out_dir == f"runs/vision/{name}"
+
+
+def _write_toy_memmap(tmp_path, seed: int, n: int):
+    from hallm.data.imagenet import STORED, load_images
+
+    path = tmp_path / f"toy_{seed}.bin"
+    data = np.random.default_rng(seed).integers(0, 256, size=(n, 3, STORED, STORED), dtype=np.uint8)
+    data.tofile(path)
+    return data, load_images(path)
+
+
+def test_prefetch_reads_identical_bytes_to_plain_read(tmp_path):
+    """madvise(WILLNEED) is a caching hint only (see the WHY comment on `_prefetch_random_reads`
+    for the 2.9 -> 26.8 batches/s measurement it's there for). Build a real on-disk memmap (a
+    genuine mmap.mmap underneath, not an in-RAM array), issue the same prefetch the training path
+    uses, then fancy-index it — the bytes must match indexing a plain in-RAM copy with no
+    prefetch at all."""
+    from hallm.data.imagenet import _prefetch_random_reads
+
+    data, images = _write_toy_memmap(tmp_path, seed=0, n=40)
+    assert isinstance(images._mmap, __import__("mmap").mmap)   # exercising the real branch
+
+    idx = np.array([37, 1, 20, 5, 5, 39, 0, 18])
+    _prefetch_random_reads(images, idx)          # must not raise, must not touch the bytes
+    got = np.ascontiguousarray(images[idx])
+    assert np.array_equal(got, data[idx])
+
+
+def test_prefetch_is_a_noop_when_nothing_to_madvise(tmp_path):
+    """Non-mmap-backed arrays must never raise: a plain np.ndarray (most callers/tests), the
+    in-RAM eval subsample `_split_for_periodic_eval` produces, and a memmap slice (still
+    mmap-backed, included here to confirm the slice path is also handled without error)."""
+    from hallm.data.imagenet import _prefetch_random_reads
+
+    plain = np.zeros((10, 3, 128, 128), dtype=np.uint8)
+    _prefetch_random_reads(plain, np.array([0, 1, 2]))              # no _mmap attribute at all
+
+    _, images = _write_toy_memmap(tmp_path, seed=1, n=20)
+    sl = images[2:8]
+    _prefetch_random_reads(sl, np.array([0, 1]))                    # slice: has _mmap, must not raise
+
+    copy = np.ascontiguousarray(images[[0, 1]])
+    _prefetch_random_reads(copy, np.array([0]))                     # fancy-index copy: no _mmap
+
+
+def test_get_image_batch_train_path_unaffected_by_prefetch(tmp_path):
+    """Wiring `_prefetch_random_reads` into the training path must not change what comes out:
+    same seed -> same batch, deterministically, same as the in100-corpus canary above checks on
+    real data."""
+    import torch
+
+    from hallm.data.imagenet import get_image_batch
+
+    _, images = _write_toy_memmap(tmp_path, seed=2, n=40)
+    labels = np.arange(40, dtype=np.int64)
+
+    g1 = torch.Generator().manual_seed(42)
+    x1, y1 = get_image_batch(images, labels, 8, 112, "cpu", g1, train=True)
+    g2 = torch.Generator().manual_seed(42)
+    x2, y2 = get_image_batch(images, labels, 8, 112, "cpu", g2, train=True)
+    assert torch.equal(x1, x2) and torch.equal(y1, y2)

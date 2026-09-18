@@ -7,6 +7,7 @@ cropped to 112 on the GPU, which keeps augmentation off the CPU and out of the i
 
 from __future__ import annotations
 
+import mmap
 from pathlib import Path
 
 import numpy as np
@@ -41,6 +42,34 @@ def load_labels(path: str | Path) -> np.ndarray:
     return np.load(path).astype(np.int64)
 
 
+def _prefetch_random_reads(images: np.ndarray, idx: np.ndarray) -> None:
+    """madvise(MADV_WILLNEED) every sampled image's byte range before the fancy-index read that
+    follows, so the kernel starts all the page-ins in parallel instead of fault-in-one-at-a-time.
+
+    Measured on the 62.97 GB in1k corpus (far larger than page cache, on a SATA-class SSD): the
+    plain fancy index `images[idx]` was 256 serialised synchronous page faults at 348 ms/batch =
+    2.9 batches/s, well under the >13.0 batches/s the training loop needs. With this hint issued
+    first: 25.8 ms madvise + 11.4 ms read = 37.3 ms/batch = 26.8 batches/s. It looks gratuitous
+    for anything that fits in page cache (ImageNet-100, tests) — it isn't, at this corpus size.
+
+    Pure caching hint: never reads or writes the mapped bytes, so it cannot change what
+    `images[idx]` returns. `images` may not be memmap-backed at all (a plain `np.ndarray`, or the
+    in-RAM eval subsample from `_split_for_periodic_eval`) — silently do nothing then, same as if
+    the OS ignored the hint.
+    """
+    mm = getattr(images, "_mmap", None)
+    if not isinstance(mm, mmap.mmap):
+        return
+    item_nbytes = 3 * STORED * STORED
+    try:
+        for i in idx.tolist():
+            offset = int(i) * item_nbytes
+            start = (offset // mmap.PAGESIZE) * mmap.PAGESIZE
+            mm.madvise(mmap.MADV_WILLNEED, start, (offset - start) + item_nbytes)
+    except Exception:
+        pass  # a caching hint failing must never break training
+
+
 def get_image_batch(
     images: np.ndarray,
     labels: np.ndarray,
@@ -55,6 +84,7 @@ def get_image_batch(
     n = len(images)
     if train:
         idx = torch.randint(0, n, (batch_size,), generator=generator)
+        _prefetch_random_reads(images, idx.numpy())
     else:
         idx = torch.arange(min(batch_size, n))
     raw = torch.from_numpy(np.ascontiguousarray(images[idx.numpy()]))
