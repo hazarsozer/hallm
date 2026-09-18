@@ -1,0 +1,16 @@
+{
+  "arm": "A1u4",
+  "best_step": 49999,
+  "corpus": "imagenet-1k",
+  "dataset": "imagenet-1k",
+  "n_classes": 1000,
+  "n_layer": 8,
+  "non_embedding_params_M": 12.5875,
+  "nonemb_weight_bytes_bf16": 25175040,
+  "passes": 9.991,
+  "run": "V8-A1u4-s1337-in1k",
+  "top1": 0.41376,
+  "top1_best": 0.416,
+  "total_params_M": 13.5204,
+  "val_loss": 2.8929
+}
