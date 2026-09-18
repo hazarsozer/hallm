@@ -98,6 +98,20 @@ from hallm.vision_runqueue import _result_row
 from hallm.vision_train import VisionTrainConfig
 
 
+def test_best_from_metrics_reads_val_top1(tmp_path):
+    from hallm.vision_runqueue import _best_from_metrics
+
+    p = tmp_path / "metrics.jsonl"
+    p.write_text(
+        '{"step": 1000, "loss": 2.0, "val_top1": 0.40, "val_loss": 2.5}\n'
+        '{"step": 2000, "loss": 1.9}\n'                      # a step with no eval
+        '{"step": 3000, "loss": 1.8, "val_top1": 0.43, "val_loss": 2.4}\n'
+        '{"step": 4000, "loss": 1.7, "val_top1": 0.41, "val_loss": 2.6}\n',
+        encoding="utf-8")
+    assert _best_from_metrics(p) == (0.43, 3000)
+    assert _best_from_metrics(tmp_path / "absent.jsonl") == (None, None)
+
+
 def test_result_row_carries_corpus_passes_and_best():
     cfg = VSHAPES["v4-in1k"]
     model = ViT(cfg)
@@ -171,7 +185,9 @@ def _best_from_metrics(metrics_path: Path) -> tuple[float | None, int | None]:
             row = json.loads(line)
         except json.JSONDecodeError:
             continue
-        t = row.get("top1")
+        # the metrics file's key is "val_top1", NOT "top1" — verified against
+        # runs/vision/V4-A0-s1337-p5k/metrics.jsonl before this plan was written
+        t = row.get("val_top1")
         if t is not None and (best is None or t > best):
             best, best_step = float(t), int(row.get("step", -1))
     return best, best_step
