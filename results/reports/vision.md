@@ -37,7 +37,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes | top-1 best | best step | flag |
 |---|---|---|---|---|---|---|---|---|---|---|
 | V4-A0-s1337-in1k | A0 | 4 | 12.59 | 39.3 | 2.9872 | imagenet-1k | 9.991 | 39.6 | 49000 |  |
-| V8-A0 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V8-A0-s1337-in1k | A0 | 8 | 25.17 | 40.5 | 2.9765 | imagenet-1k | 9.991 | 40.4 | 49000 |  |
 | V8-A2 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 | V8-A1u4 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 | V8-A1u4t | — | — | — | pending | pending | imagenet-1k | — | — | — | |
@@ -51,7 +51,7 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 | V8-A1u4 | V8-A2 | matched storage and compute | — | — | pending |
 | V8-A1u4t | V8-A1u4 | matched storage and compute | — | — | pending |
 
-**Depth gate (spec §3):** pending — imagenet-1k
+**Depth gate (spec §3):** V8-A0 40.5 vs V4-A0 39.3 → pass — imagenet-1k
 
 **Follow-up seed rule (spec §3):** pending — imagenet-1k
 
@@ -71,4 +71,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-18T03:09:27+00:00 from 60 run(s) -->
+<!-- built 2026-09-18T05:00:38+00:00 from 61 run(s) -->

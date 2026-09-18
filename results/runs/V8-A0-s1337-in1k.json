@@ -1,0 +1,16 @@
+{
+  "arm": "A0",
+  "best_step": 49000,
+  "corpus": "imagenet-1k",
+  "dataset": "imagenet-1k",
+  "n_classes": 1000,
+  "n_layer": 8,
+  "non_embedding_params_M": 25.1745,
+  "nonemb_weight_bytes_bf16": 50349056,
+  "passes": 9.991,
+  "run": "V8-A0-s1337-in1k",
+  "top1": 0.40502,
+  "top1_best": 0.4044,
+  "total_params_M": 26.1074,
+  "val_loss": 2.9765
+}
