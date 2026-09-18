@@ -30,13 +30,13 @@ ImageNet-100 @112px, one recipe across arms, **1 seed (1337) — descriptive onl
 
 **Follow-up seed rule (spec §3):** |Δ| = 0.82 points → not triggered — reported as no difference detected at 1 seed — imagenet-100
 
-### imagenet-1k — —-way, — passes over the corpus
+### imagenet-1k — 1000-way, 9.991 passes over the corpus
 
 > 1 seed (1337), descriptive. Absolute accuracies are NOT comparable across blocks: the blocks differ in corpus, class count and pass count. Only arm gaps within a block are claimed.
 
 | run | arm | layers | stored non-emb M | top-1 | val loss | corpus | passes | top-1 best | best step | flag |
 |---|---|---|---|---|---|---|---|---|---|---|
-| V4-A0 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
+| V4-A0-s1337-in1k | A0 | 4 | 12.59 | 39.3 | 2.9872 | imagenet-1k | 9.991 | 39.6 | 49000 |  |
 | V8-A0 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 | V8-A2 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
 | V8-A1u4 | — | — | — | pending | pending | imagenet-1k | — | — | — | |
@@ -71,4 +71,4 @@ Reference: `V4-A0`.
 
 **Data hashes identical across arms:** yes
 
-<!-- built 2026-09-18T01:55:41+00:00 from 59 run(s) -->
+<!-- built 2026-09-18T03:09:27+00:00 from 60 run(s) -->
