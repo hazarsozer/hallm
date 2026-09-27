@@ -4,7 +4,8 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from PIL import Image
+
+Image = pytest.importorskip("PIL.Image")  # pillow lives in the optional `analysis` group
 
 spec = importlib.util.spec_from_file_location(
     "prep1k", Path(__file__).parent.parent / "scripts" / "prepare_imagenet1k.py")
