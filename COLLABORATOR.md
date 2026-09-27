@@ -1,7 +1,11 @@
 # HaLLM — collaborator rules
 
-Standing instructions for anyone running experiments on this project from a machine
-that is not the primary training box.
+Standing instructions for anyone running experiments on this project, including AI agents.
+
+**Roles (from 2026-09-27, see HANDOVER.md):** Alper Düzgün leads the project and owns `main`.
+Hazar is on CC and reviews on request. The "Never" rules about `main` below apply to everyone
+*except* the project lead. They are for helpers and agents working on branches. Every experiment
+rule applies to everyone, the lead included.
 
 This is a controlled scientific experiment. Silent deviations destroy results, and the
 damage is usually invisible until someone tries to publish the number.
@@ -17,11 +21,11 @@ survive a re-clone, while your local setup stays yours.
 - Edit `results/reports/*.md` — generated from `results/runs/*.json`.
 - Start a training run unless explicitly told to in that session.
 
-## HuggingFace — Alper is an org admin, so be deliberately conservative
+## HuggingFace — org admins can destroy history, so be deliberately conservative
 - Only ADD files, under `checkpoints/<run-id>/`.
 - Never delete, move, rename or overwrite an existing path. The flat `A0/`,
   `A1/`, `A2/`, `A3/`, `A0-deep/`, `A2-iso/`, `runs/` and `data/` paths are
-  live history; reorganising them is Hazar's task, not a side effect.
+  live history; reorganising them is a deliberate, planned task, not a side effect.
 - Never change repo settings (visibility, name, gating) or org membership.
 - Never delete a repo or branch. If something looks wrong, report it.
 
@@ -80,3 +84,6 @@ protocol is not evidence — better to catch it here than after delivery.
 
 ## When anything is unclear
 Stop and write a short plain-English report. Do not improvise; the human will relay it.
+
+## More
+Setup and commands: `docs/RUNBOOK.md`. Current state and open decisions: `HANDOVER.md`.

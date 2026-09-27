@@ -8,7 +8,20 @@ and compares/composes it with ALBERT-style cross-layer sharing under a matched b
 Companion code: [alpericon/wplusw-lm](https://github.com/alpericon/wplusw-lm) (independent implementation).
 Trained checkpoints: [hallm-thesis/hallm-wikitext103](https://huggingface.co/hallm-thesis/hallm-wikitext103) (private).
 
-All runs share one protocol: WikiText-103, GPT-2 BPE (V=50257), d=512, ctx=512, 614M tokens
+> **Status (2026-09-27): Alper Düzgün leads the project from here. Start with
+> [HANDOVER.md](HANDOVER.md).** Brief: [docs/PROJECT.md](docs/PROJECT.md) · decisions:
+> [docs/DECISIONS.md](docs/DECISIONS.md) · timeline: [CHANGELOG.md](CHANGELOG.md) · how to run:
+> [docs/RUNBOOK.md](docs/RUNBOOK.md).
+>
+> **The question now (since 2026-09-14):** at a fixed number of stored weights, does spending extra
+> compute through sharing beat the unshared model, and does W+Wᵀ or looping spend it better?
+> **So far:** looping pays at fixed storage and W+Wᵀ does not (3 seeds, two sizes); W/Wᵀ reuse
+> across depth (the transposed loop) does not rescue it; and our own ViTs order the schemes exactly
+> as our LMs do, so the domain does not explain HaLViT's gain. Open: the reasoning-track grid (its
+> harness is validated, PR #13) and the 124M rung. Details in [RESULTS.md](RESULTS.md) Experiments 6–9. The sections below cover the
+> August results (the tax, its scaling, and its mechanism).
+
+All LM ladder runs share one protocol: WikiText-103, GPT-2 BPE (V=50257), d=512, ctx=512, 614M tokens
 (50k steps × 12,288), AdamW lr 6e-4 cosine → 6e-5, bf16, dropout 0.0. Only the declared
 variable differs within a comparison. **Forward GFLOPs are identical across arms** — sharing
 compresses storage, never compute.
@@ -104,6 +117,10 @@ src/hallm/
   results.py           per-run result files — the source of truth
   reports.py           derived statistics: tax, paired regression, H-S verdict
   runqueue.py          drain-the-queue runner (resumable, interrupt-safe)
+  model/vit.py         ViT over the same sharing-aware sublayers (controlled ViT study)
+  data/imagenet.py     uint8 image memmaps, crop/flip batches, stratified eval subsample
+  vision_train.py      the vision training loop (same recipe as train.py)
+  vision_runqueue.py   the vision queue runner and its result rows
 
 configs/
   runs/<run-id>.yaml   one config per run, canonical and never hand-edited
@@ -130,11 +147,18 @@ scripts/
   capability_eval.py   inference-only capability evals over checkpoints
   run_real_training.py  data prep + single-run training
   chain_*.sh           unattended GPU supervisors (relaunch on crash)
+  run_vision_queue.py  vision counterpart of run_queue.py
+  build_vision_report.py  results/reports/vision.md
+  prepare_imagenet100.py / prepare_imagenet1k.py  image corpora → uint8 memmaps
+  ffn_symmetry.py      FFN Jacobian rotation share over checkpoints
+  tasks.py             GitHub-issue task discovery and reporting (COLLABORATOR.md)
 
-tests/                 17 files, 133 tests — param-count proofs, smoke, resume,
-                       queue semantics, manifests, reports, metrics, capability
-                       evals, FineWeb data, val/test split migration
-docs/superpowers/      specs/ (approved designs) and plans/ (implementation)
+tests/                 param-count proofs, smoke, resume, queue semantics, manifests,
+                       reports, metrics, capability evals, FineWeb data, split
+                       migration, looped/transposed arms, ViT and ImageNet data
+docs/                  PROJECT.md (brief) · DECISIONS.md · RUNBOOK.md ·
+                       superpowers/specs/ (designs, pre-registered) · superpowers/plans/ ·
+                       analysis/ (outcomes, predictions scored)
 wiki/                  curated research base: roadmap, analyses, concepts, sources
 raw/papers/            cited PDFs
 runs/                  gitignored runtime scratch (checkpoints, resume state)
@@ -152,6 +176,7 @@ Arms: `A0` none · `A1` ALBERT cross-layer · `A2` W+Wᵀ both · `A3` both axes
 `A1u<k>` looped: k blocks cycled to depth L.
 `A1u<k>t|n|a` transposed loop: odd passes reuse the blocks with Wᵀ — added, subtracted, or
 scaled by a learned α (spec 2026-09-15).
+ViTs use `V<depth>-A<arm>-s<seed>`; `-in1k` marks the ImageNet-1k runs.
 
 ### Where each artifact lives
 
@@ -169,7 +194,7 @@ scaled by a learned α (spec 2026-09-15).
 
 ```bash
 uv sync
-uv run pytest                # 133 tests
+uv run pytest                # CPU-only; data-dependent tests skip without their data
 ```
 
 Real training is GPU-only and never launched by an automated loop:
