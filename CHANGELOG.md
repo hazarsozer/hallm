@@ -14,7 +14,8 @@ docs/DECISIONS.md. This file is the timeline that connects them.
 - **Withdrawal banner** added to the 2026-09-17 outcome doc, whose symmetry claim was withdrawn on
   2026-09-18 without the doc itself saying so.
 - `tests/test_prepare_imagenet1k.py` skips cleanly without pillow instead of failing collection.
-- Branches `controlled-vit` and `vit-pass-matched` merged into `main`.
+- Branches `controlled-vit` and `vit-pass-matched` merged into `main`; ViT checkpoints and the
+  FineWeb-Edu bins added to HF.
 
 ## 2026-09-18 — Track 2 built and calibrated (Alper, T-006, PR #13)
 - Three synthetic tasks (p-hop induction, addition, variable-binding chains), each checked against an
@@ -29,14 +30,15 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   Tested first with a 5,000-step probe on ImageNet-100 (+1.38 points for depth).
 - ImageNet-1k at 128px, 50k steps, 9.99 passes: depth gate **passes** (+1.23 points). No arm overfits.
 - Arms (1 seed): `V4-A0` 39.27 · `V8-A0` 40.50 · `V8-A2` **31.33** · `V8-A1u4` **41.38** · `V8-A1u4t` 37.87.
-  Same ordering as language; the one difference is that looping beats the unshared ceiling (+0.87).
+  Every pre-registered pair matches language's direction; looping also beats the unshared ceiling (+0.87).
 - Predictions 2, 3, 4 fail → by the spec's rule, the LM negatives generalize to vision.
 - **Withdrawn:** the 2026-09-17 symmetry claim (no vision-vs-language gap once the recipe is fixed).
 - New code: 1000-class shapes, stratified eval subsample, parallel ImageNet-1k prepare, per-corpus
   vision report with pass counts and an overfitting flag.
 
 ## 2026-09-17 — Controlled ViT study, first pass: depth gate fails
-- Five arms as ViTs on ImageNet-100 @112px, our LM recipe, minimal augmentation.
+- Five arms as ViTs on ImageNet-100 (stored at 128px, trained on 112px crops), our LM recipe,
+  minimal augmentation.
 - `V8-A0` 46.96% < `V4-A0` 48.14%: the pre-registered depth gate **fails**, so no sharing claim.
   All four 8-layer arms within 0.4 points of each other.
 - Reported the FFN symmetry gap as a controlled result (withdrawn the next day).
@@ -56,7 +58,7 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   `L16-A1u8` −2.47% vs `L8-A0`, 3/3 seeds) and beats W+Wᵀ at matched storage and compute (−5.25%,
   −6.10%). `L9-A2attn` +1.81%, `L10-A2attn` +0.05% then +0.71% at seed 1338: A2attn does not beat
   `L8-A0` at iso-storage.
-- Track 1 probes over 21 checkpoints: no W+Wᵀ reasoning signal; looping wins at L16 on LAMBADA,
+- Track 1 probes: no signal for full A2; `L10-A2attn` later shows one on BLiMP (2 seeds); looping wins at L16 on LAMBADA,
   BLiMP, late and rare loss.
 - FFN rotation share measured: LMs 0.45–0.48, DeiT-small 0.40.
 - Looping ruled out as the headline (prior work). Transposed loop specified, literature-checked
@@ -89,7 +91,7 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   *cheapest*, inverting the roadmap's prediction; taxes are roughly additive.
 - Infrastructure: exact resume, frozen manifests, a run queue, capability evals, per-run result
   files, generated reports, `tasks.py` for collaborator tasks, HF org `hallm-thesis`.
-- Alper runs the seed-1339 ladder pairs on his 3070 Ti (#1).
+- Alper runs the L4 seed-1339 pair on his 3070 Ti (#1, PR #3); L8/L16 seed 1339 run on the 4070.
 
 ## 2026-08-18 — First controlled results
 - Four arms at d=512/L8, WikiText-103, 614M tokens: A0 26.06 · A1 35.63 · A2 29.68 · A3 43.30.
@@ -101,4 +103,4 @@ docs/DECISIONS.md. This file is the timeline that connects them.
 - Advisor picks Option 2 (W+Wᵀ → language models), research only.
 
 ## 2026-04 → 06 — Design I
-- Literature wiki (56 sources), the two thesis options, the interim report (`docs/interim-report.pdf`).
+- Literature wiki (`wiki/`), the two thesis options, the interim report (`docs/interim-report.pdf`).

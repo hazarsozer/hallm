@@ -3,8 +3,8 @@
 Standing instructions for anyone running experiments on this project, including AI agents.
 
 **Roles (from 2026-09-27, see HANDOVER.md):** Alper Düzgün leads the project and owns `main`.
-Hazar is on CC and reviews on request. The "Never" rules about `main` below apply to everyone
-*except* the project lead. They are for helpers and agents working on branches. Every experiment
+Hazar is on CC and reviews on request. The first "Never" rule (no pushing to `main`) applies to everyone
+*except* the project lead; the rest of "Never" applies to everyone. They are for helpers and agents working on branches. Every experiment
 rule applies to everyone, the lead included.
 
 This is a controlled scientific experiment. Silent deviations destroy results, and the

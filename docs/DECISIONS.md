@@ -63,8 +63,8 @@ Detail: `docs/analysis/2026-09-16-transposed-loop-outcome.md`.
 Looping wins at fixed storage, but looping is prior work (Universal Transformers, ALBERT, Saunshi et
 al. 2025, Bae et al. 2025), so the contribution has to come from W/Wᵀ. The transposed loop reuses
 each block with Wᵀ on the second pass. Literature check: novel as specified (~70% confidence). Gate
-amendment: a transposed winner would have taken the W+Wᵀ slot at 124M. There was none, so **that slot
-is open** (see HANDOVER.md).
+amendment: a transposed winner would have taken the W+Wᵀ slot at 124M. There was none, so per the
+amendment the 2026-09-14 gate rule stands unchanged (HANDOVER.md D2).
 Detail: `docs/superpowers/specs/2026-09-15-transposed-loop-design.md`,
 `wiki/analyses/transposed-loop-literature-2026-09.md`.
 

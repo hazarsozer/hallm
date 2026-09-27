@@ -198,12 +198,14 @@ all 3 seeds to agree and |mean| > 2 SE.
   looped L8 needs 345.6 MB against `L4-A0`'s 211.4 MB (~1.6×). The claim is about stored weights.
 - `L10-A2attn` stores 4% *more* than `L8-A0` and still does not beat it in every seed.
 
-**Track 1 probes** (`results/reports/capability.md`, 21 checkpoints): LAMBADA, BLiMP, per-position
-and per-frequency loss, copy gain. W+Wᵀ shows no reasoning (H-R) signal on any probe. Looping beats
+**Track 1 probes** (`results/reports/capability.md`): LAMBADA, BLiMP, per-position and per-frequency
+loss, copy gain. Full A2 shows no reasoning (H-R) signal on any probe. The one W+Wᵀ-family signal is
+`L10-A2attn` vs `L8-A0` on BLiMP (SUPPORTED, n=2, Δ −0.66), from an arm storing 4% more than its
+comparator. Looping shows signals at both sizes (late and rare loss; BLiMP at L16), and beats
 W+Wᵀ at L16 on LAMBADA, BLiMP, late-position and rare-token loss. LAMBADA sits near the floor (6–9%),
-so the reasoning half of the question rests on Track 2. Its harness and p-hop validity check are done
-(PR #13: looped 85.0% vs unshared deep 87.7% at p=4, reproducing Saunshi et al.'s qualitative
-result); the comparison grid has not run.
+so the reasoning half of the question rests on Track 2. Its harness is built (PR #13). At p=4 the
+validity check passes on one seed (looped 85.0% vs unshared deep 87.7%, within the PR's 5 pp
+tolerance), consistent with Saunshi et al.; at p=3 it fails by 25.6 pp. The comparison grid has not run.
 
 ## Experiment 7 — Transposed loop (2026-09-15 → 09-16)
 
@@ -220,8 +222,8 @@ the pre-registered +1% of the plain loop, so none earned more seeds, and one see
 
 - **All three lose to the plain loop; all three beat plain W+Wᵀ.** (The "SUPPORTED" and "pending"
   labels on these rows in `iso-storage.md` are generated from one seed. Read them as descriptive.)
-- Predictions 2 and 3 failed (`n` is the worst variant; the learned FFN α grow with depth instead of
-  falling below 1), so the symmetric/antisymmetric argument does not explain the ordering.
+- Predictions 2 and 3 failed (`n` is the worst variant; the learned FFN α mostly grow with depth,
+  0.42 → 1.72 → 1.83 → 2.16, instead of drifting below 1), so the symmetric/antisymmetric argument does not explain the ordering.
 
 **FFN rotation share** (`results/reports/ffn-symmetry.md`): the share of an FFN Jacobian that is
 antisymmetric. W+Wᵀ FFNs are exactly 0 by construction. Unshared LMs sit at 0.45–0.48 (random
@@ -239,7 +241,7 @@ the WikiText budget (614M tokens). One seed.
 
 The W+Wᵀ penalty is **about half** its WikiText size (+1.94% val vs +3.64% at the same seed). The sign
 holds and the magnitude depends on the corpus, so pilot margins must not be carried to the 124M
-FineWeb-Edu rung as they are. Open: the val/test gap is 8.8% here against ~2% on WikiText.
+FineWeb-Edu rung as they are. Open: the val/test gap is 8.8% here against 0.5–2.4% (mean 1.2%) on WikiText.
 
 ## Experiment 9 — Controlled ViT study (2026-09-16 → 09-18)
 
@@ -249,7 +251,8 @@ under our recipe with minimal augmentation (random crop + flip + label smoothing
 `docs/analysis/2026-09-17-*` and `2026-09-18-*`; table in `results/reports/vision.md`.
 
 **First pass (ImageNet-100, 101 passes): depth gate failed** (`V8-A0` 46.96% < `V4-A0` 48.14%), so no
-sharing claim. The cause was data reuse: every arm peaked at 37–40k steps and decayed.
+sharing claim. The cause was data reuse: the unshared arms and the transposed loop peaked at 37–40k
+steps and decayed; `V8-A1u4` peaked at 47k and `V8-A2` only at its last step.
 
 **Second pass (ImageNet-1k @128px, 9.99 passes, 1 seed): depth gate passes (+1.23 points).**
 
@@ -261,12 +264,15 @@ sharing claim. The cause was data reuse: every arm peaked at 37–40k steps and 
 | `V8-A1u4-in1k` (looped) | 12.59M | **41.38%** |
 | `V8-A1u4t-in1k` (transposed loop) | 12.59M | 37.87% |
 
-- **Vision orders the schemes exactly as language does**: looping > shallow unshared > transposed
-  loop > W+Wᵀ. W+Wᵀ loses 7.94 points at iso-storage. By the spec's rule, the LM negatives generalize,
+- **Every pre-registered pair goes the same direction in vision as in language**: looping beats the
+  shallow unshared model at iso-storage and beats W+Wᵀ at matched compute; W+Wᵀ loses 7.94 points at
+  iso-storage; the transposed loop loses to the plain loop. Vision's order is looping > shallow
+  unshared > transposed loop > W+Wᵀ. Language differs on one unregistered pair: there the transposed
+  loop roughly ties the shallow unshared model (−0.09% to +0.98%, 1 seed); in vision it loses by 1.4. By the spec's rule, the LM negatives generalize,
   and HaLViT's reported gain is attributable to its recipe, scale or augmentation rather than to the
   domain. (This is not a claim that HaLViT is wrong under its own recipe.)
 - **The one difference:** looping beats the unshared *ceiling* at half the storage (+0.87 points),
-  which language never does (`L8-A1u4` is 8.06% worse than `L8-A0`). One seed; a candidate, not a finding.
+  which language never does (`L8-A1u4` is 8.41% worse than `L8-A0` over 3 seeds). One seed; a candidate, not a finding.
 - **Withdrawn:** the first pass's "vision FFNs are more symmetric than language FFNs". Re-measured,
   our ViTs sit at 0.4437–0.4516 against our LMs' 0.4476–0.4774.
 - **Caveat (corrected 2026-09-27):** the re-run was designed as pass-matched to the LM ladder, but the
@@ -316,7 +322,7 @@ context — not serving memory in general.
 7. **W/Wᵀ reuse across depth (the transposed loop) does not rescue it** (Experiment 7), and the
    symmetry argument does not explain why.
 8. **The domain does not explain it either** (Experiment 9): under our recipe, ViTs order the
-   sharing schemes exactly as LMs do. One seed, and ~2× the LMs' data reuse.
+   sharing schemes the way LMs do on every pre-registered pair. One seed, and ~2× the LMs' data reuse.
 9. Still open: the reasoning half of the question (the Track 2 grid; its harness is validated) and the 124M rung. The program:
    docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
 

@@ -16,8 +16,8 @@ Trained checkpoints: [hallm-thesis/hallm-wikitext103](https://huggingface.co/hal
 > **The question now (since 2026-09-14):** at a fixed number of stored weights, does spending extra
 > compute through sharing beat the unshared model, and does W+Wᵀ or looping spend it better?
 > **So far:** looping pays at fixed storage and W+Wᵀ does not (3 seeds, two sizes); W/Wᵀ reuse
-> across depth (the transposed loop) does not rescue it; and our own ViTs order the schemes exactly
-> as our LMs do, so the domain does not explain HaLViT's gain. Open: the reasoning-track grid (its
+> across depth (the transposed loop) does not rescue it; and our own ViTs go the same direction as our LMs
+> on every pre-registered pair (one seed), so the domain does not explain HaLViT's gain. Open: the reasoning-track grid (its
 > harness is validated, PR #13) and the 124M rung. Details in [RESULTS.md](RESULTS.md) Experiments 6–9. The sections below cover the
 > August results (the tax, its scaling, and its mechanism).
 

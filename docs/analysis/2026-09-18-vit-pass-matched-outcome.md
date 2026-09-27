@@ -7,6 +7,13 @@
 > survives: the depth effect flips sign between 101 and ~10 passes, and no arm overfits at ~10. Every
 > claim that rests on the reuse being *equal* is weakened to "close, within 2×". Whether to re-run at
 > ~25,800 steps is open. See `docs/DECISIONS.md` (2026-09-27).
+>
+> **Also corrected 2026-09-27 (fact-check):** "vision orders the schemes exactly as language does"
+> (summary, §7) holds for every pair in §4.1, not for the full ordering: in language the transposed
+> loop roughly ties the shallow unshared model (−0.09%, 1 seed), while in vision it loses by 1.40 points.
+> "All five first-pass arms peaked at 37–40k" (§3.1, §4) holds for three: `V8-A1u4` peaked at 47k and
+> `V8-A2` at its final step. The language comparator in §4.1's last row is seed 1337; the 3-seed mean
+> is 8.41%.
 
 Spec: `docs/superpowers/specs/2026-09-18-vit-pass-matched-design.md` (predictions 1–6 recorded before
 any run of this pass, including the §3 probe). Plan:

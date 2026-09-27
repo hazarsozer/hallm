@@ -7,8 +7,8 @@ the numbers, read [`RESULTS.md`](../RESULTS.md).
 **Project:** Advanced Model Compression Techniques for Resource-Constrained AI Architectures
 (ITU AI & Data Engineering graduation project, YZV 4901E/4902E)
 **Team:** Alper Düzgün (project lead from 2026-09-27), Hazar Utku Sözer
-**Advisor:** Prof. Dr. Behçet Uğur Töreyin. He asked that Ahmet Nuri Yılmaz (who assembled the
-HaLViT code) be kept in the loop, and that every mail CC the whole team.
+**Advisor:** Prof. Dr. Behçet Uğur Töreyin. Keep Ahmet Nuri Yılmaz (who assembled the HaLViT code)
+in the loop, and CC the whole team on advisor mail.
 
 ---
 
@@ -41,9 +41,11 @@ The ≤2% bar stays as a reported secondary verdict. Spec:
 [`2026-09-14-fixed-storage-compute-program-design.md`](superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md).
 
 3. **Side question, answered 2026-09-18 — is language the problem?** If W+Wᵀ works in HaLViT and not
-   here, is the domain the reason? Our own arms were trained as ViTs under our recipe. At matched data
-   reuse **vision orders the schemes exactly as language does**, and W+Wᵀ loses in both. HaLViT's gain
-   is attributable to its recipe, scale or augmentation rather than to the domain.
+   here, is the domain the reason? Our own arms were trained as ViTs under our recipe, at data reuse
+   within 2× of the LMs'. On every pre-registered pair vision goes the same direction as language, and
+   W+Wᵀ loses in both. By the spec's rule this attributes HaLViT's gain to its recipe, scale or
+   augmentation rather than to the domain. One seed; see RESULTS.md Experiment 9 for the two
+   differences.
 
 ## 3. Hypotheses and decision rules (pre-registered)
 
@@ -51,10 +53,10 @@ The ≤2% bar stays as a reported secondary verdict. Spec:
 |---|---|---|---|
 | H-S | the sharing tax shrinks with scale | slope of tax on log₂(params), 95% CI below 0 | **supported** (−1.28 pp/doubling, 9 pairs) |
 | H-M1/2 | attention sharing costs more than FFN; taxes add | per-rung means, 3 seeds at L8 | H-M1 **not supported** (inverted); H-M2 supported |
-| H-C | a shared arm beats the unshared model at the same storage | lower mean **and** sign holds in every paired seed | **supported for looping** at L8 and L16; not for W+Wᵀ |
+| H-C | a shared arm beats the unshared model at the same storage | lower mean **and** sign holds in every paired seed | **supported for looping** at L8 and L16; not for W+Wᵀ on perplexity |
 | H-L | which kind spends compute better (matched storage + compute) | sign in all 3 seeds and \|mean\| > 2 SE | **looping beats W+Wᵀ** at L8 and L16 |
-| H-R | the same, on reasoning metrics | H-C/H-L rules on probe or Track 2 accuracy | Track 1: no W+Wᵀ signal; looping wins at L16. **Track 2: harness and validity check done (PR #13), grid not run** |
-| H-T | a transposed loop beats the plain loop | spec 2026-09-15 §4 | **failed** (all three variants lose) |
+| H-R | the same, on reasoning metrics | H-C/H-L rules on probe or Track 2 accuracy | Track 1: looping shows signals at both sizes; the only W+Wᵀ-family signal is `L10-A2attn` on BLiMP (2 seeds). **Track 2: harness built, p=4 validity check passes at one seed (PR #13), grid not run** |
+| H-T | a transposed loop beats the plain loop | spec 2026-09-15 §3 | **failed** (all three variants lose) |
 
 Rules are fixed before the runs they judge. When a rule turned out to be badly designed, it was
 replaced *in writing, with the reason*, never quietly (see the Experiment 3 note in RESULTS.md).
@@ -79,8 +81,8 @@ and prove nothing).
   stands on them as long as the controls are sound.
 - **Novelty:** looping is known (Universal Transformers, ALBERT, Saunshi et al. 2025, Bae et al.
   2025), so it cannot be the headline contribution. The contribution has to come from the W/Wᵀ side:
-  the controlled measurement of what W+Wᵀ costs, why, and that the domain does not explain HaLViT's
-  gain.
+  the controlled measurement of what W+Wᵀ costs and why, and the controlled cross-domain test of
+  whether the domain explains HaLViT's gain (so far: it does not, at one seed).
 - Course bar: the advisor must approve before the final exam and presentation; faculty templates
   are mandatory; code and data are submitted electronically, not pasted into the report.
 
@@ -102,7 +104,6 @@ and prove nothing).
   Töreyin). Seed 1337 first for all three arms keeps a partial grid a complete comparison.
 - **Track 2 does not reproduce Saunshi et al.** Handled by its validity check: fix the pipeline
   before reading any W+Wᵀ result. Costs calendar, not conclusions.
-- **The advisor has not been updated since 2026-08-14** and has not approved the reframe. 124M spend
-  waits for his OK.
-- **Scope of claims.** Two to three seeds per rung, one or two corpora, 12–100M parameters. Several
+- **Advisor sign-off.** The reframe and the 124M spend need Töreyin's OK (spec §11 R11).
+- **Scope of claims.** Two to three seeds per rung, one or two corpora, 1.6–50M non-embedding parameters so far. Several
   results are one seed. Every write-up must say so.

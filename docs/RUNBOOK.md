@@ -16,15 +16,15 @@ Python and torch versions are pinned by `uv.lock`. On Windows, run the same comm
 
 ## 2. Data
 
-Verify every corpus by SHA-256 against its `SOURCE.json` (or the hashes in
-`scripts/hf_migrate_legacy.py` for WikiText) before any run. A mismatch means stop.
+Verify every corpus by SHA-256 against its `SOURCE.json` (WikiText: the run manifests'
+`data_sha256`; `scripts/hf_migrate_legacy.py` has train and val) before any run. A mismatch means stop.
 
 | corpus | get it | size |
 |---|---|---|
-| WikiText-103 bins | HF `hallm-thesis/hallm-wikitext103`, path `data/` (`hf download hallm-thesis/hallm-wikitext103 --include 'data/*' --local-dir .`), or rebuild with `scripts/run_real_training.py prepare` | ~0.25 GB |
-| FineWeb-Edu bins | `uv run --group data python scripts/prepare_fineweb.py` (reads `sample/10BT` shards 000–003, holds out 013) | ~5.2 GB |
+| WikiText-103 bins | HF `hallm-thesis/hallm-wikitext103`, `data/{train,val,test}.bin` (private repo: needs an HF token; e.g. `hf download hallm-thesis/hallm-wikitext103 --include 'data/*.bin' --local-dir .`). `scripts/run_real_training.py prepare` rebuilds train/val only, no test | ~0.25 GB |
+| FineWeb-Edu bins | HF, same repo, `data/fineweb/` (added 2026-09-27; hashes match `SOURCE.json`), or rebuild with `uv run --group data python scripts/prepare_fineweb.py` | ~5.2 GB |
 | ImageNet-1k memmaps | `uv run --group data --group analysis python scripts/prepare_imagenet1k.py --out data/in1k` | 65 GB, ~6 GB download |
-| ImageNet-100 memmaps | `uv run --group data --group analysis python scripts/prepare_imagenet100.py` | 6.6 GB |
+| ImageNet-100 memmaps | `uv run --group data --group analysis python scripts/prepare_imagenet100.py` | 6.5 GB |
 | LAMBADA, BLiMP | one-time fetch; see the `scripts/capability_eval.py` docstring | small |
 
 **HF downloads stalling in `SYN-SENT`:** some networks blackhole IPv6 to the HF CDN. The ImageNet
@@ -46,7 +46,7 @@ uv run python scripts/run_vision_queue.py --queue configs/runs/<queue>.txt \
 ```
 
 - **Interrupting is safe.** Checkpoints every 1000 steps; the next invocation resumes from
-  `runs/<kind>/<run-id>/resume.pt` with optimizer state, data order and RNG restored. Relaunch the
+  `runs/<kind>/<run-id>/resume.pt` (`<kind>` is `ladder` or `vision`) with optimizer state, data order and RNG restored. Relaunch the
   same command, and change nothing between sessions of one run.
 - Bound a session with `--max-runs N` or `--stop-step N`.
 - **Keep the machine awake.** A suspend killed the first-ever run at step 20.4k. On Linux, wrap the
@@ -58,7 +58,7 @@ uv run python scripts/run_vision_queue.py --queue configs/runs/<queue>.txt \
   more `grad_accum` at the same tokens per step) must be identical for both arms of a pair, and it
   changes the config, so it gets new configs and a note in the manifest. Never patch a run mid-way.
 - **Cloud:** use `resume.pt`. Colab sessions time out; an hourly rented GPU is better for multi-day
-  runs. Copy `results/` and `runs/<run-id>/model.pt` off before the instance dies.
+  runs. Copy `results/` and `runs/<kind>/<run-id>/` off before the instance dies.
 
 Run ID grammar: `L<depth>-A<arm>-s<seed>[-suffix]` for LMs, `V<depth>-A<arm>-s<seed>[-suffix]` for
 ViTs. Arms: `A0` none · `A1` ALBERT · `A2` W+Wᵀ · `A3` both · `A2ffn` · `A2attn` · `A1u<k>` looped (k
@@ -71,7 +71,7 @@ blocks cycled) · `A1u<k>t|n|a` transposed loop. Suffixes: `-fw` FineWeb-Edu, `-
 uv run python scripts/build_reports.py           # LM tables → results/reports/*.md
 uv run python scripts/build_vision_report.py     # vision table → results/reports/vision.md
 uv run python scripts/capability_eval.py --checkpoints 'runs/ladder/*/*.pt' \
-    --lambada data/lambada_test.jsonl --blimp data/blimp --data data/ --out results/
+    --lambada data/lambada_test.jsonl --blimp data/blimp --data data/ --probes --out results/
 uv run python scripts/eval_split.py …            # held-out test PPL for finished checkpoints
 uv run --group analysis python scripts/ffn_symmetry.py --help   # FFN rotation share
 ```
@@ -86,8 +86,9 @@ uv run --group analysis python scripts/ffn_symmetry.py --help   # FFN rotation s
 ## 5. Checkpoints (HF)
 
 ```bash
-uv run python scripts/hf_sync.py …       # add-only upload of runs/<run-id>/model.pt + manifest
-uv run python scripts/hf_fetch.py …      # download for probes/evals elsewhere
+uv run python scripts/hf_sync.py --dry-run                    # LM runs (default --runs runs/ladder)
+uv run python scripts/hf_sync.py --runs runs/vision --dry-run # ViT runs; drop --dry-run to upload
+uv run python scripts/hf_fetch.py --help # download checkpoints for probes/evals elsewhere
 ```
 
 HF rules: only **add** under `checkpoints/<run-id>/`. Never delete, move, rename or overwrite, and
