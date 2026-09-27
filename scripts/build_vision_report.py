@@ -224,16 +224,18 @@ def vision_report(rows: list[dict], seed: int = 1337, manifests: dict[str, dict 
     seen = _by_arm(rows, seed)
 
     out = [STAMP, "# Controlled ViT study (spec 2026-09-16)", ""]
-    out.append(f"ImageNet-100 @112px, one recipe across arms, **1 seed ({seed}) — descriptive only, "
-               "no verdict is claimed**. Δ is a top-1 point difference; positive means the first "
-               "model is better.")
+    out.append(f"Two passes over the same five arms, one recipe across arms, **1 seed ({seed}) — "
+               "descriptive only, no verdict is claimed**: ImageNet-100 (100-way, 101.03 passes, spec "
+               "2026-09-16) and ImageNet-1k at 128px (1000-way, 9.99 passes, spec 2026-09-18); both "
+               "train on 112px crops. For scale, the LM ladder sees WikiText-103 5.15 times. Δ is a "
+               "top-1 point difference; positive means the first model is better.")
     out.append("")
     out.append(
-        "**Reading these numbers (spec §3, §4, §9 R3).** With 100 classes, random guessing scores "
-        "~1% top-1; every arm reported below is expected to land clearly above that floor, not "
+        "**Reading these numbers (spec §3, §4, §9 R3).** Random guessing scores ~1% top-1 with 100 "
+        "classes and ~0.1% with 1000; every arm reported below is expected to land clearly above that floor, not "
         "merely above it. Separately, the augmentation floor used here — a random crop and flip, "
         "nothing else — is deliberately minimal and is *not* HaLViT's published training recipe, "
-        "so absolute top-1 numbers are expected to sit below published ImageNet-100 results; a null "
+        "so absolute top-1 numbers are expected to sit below published results; a null "
         "result in this report therefore shows that the sharing gain does not survive a common, "
         "minimal recipe, not that it fails HaLViT's own recipe on its own terms. The third §3 "
         "sanity gate — V8-A2's FFN Jacobian rotation share measuring ~0 — is not repeated here; "
