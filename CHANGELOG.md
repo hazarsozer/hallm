@@ -13,6 +13,8 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   plan and outcome.
 - **Withdrawal banner** added to the 2026-09-17 outcome doc, whose symmetry claim was withdrawn on
   2026-09-18 without the doc itself saying so.
+- Open hypothesis recorded (HANDOVER D5): W+Wᵀ's cost depends on data reuse, which could reconcile
+  HaLViT's result with ours.
 - `tests/test_prepare_imagenet1k.py` skips cleanly without pillow instead of failing collection.
 - Branches `controlled-vit` and `vit-pass-matched` merged into `main`; ViT checkpoints and the
   FineWeb-Edu bins added to HF.

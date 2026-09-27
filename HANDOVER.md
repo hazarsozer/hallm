@@ -104,7 +104,32 @@ nothing. Downside of re-running: it costs cloud GPU time that Phase 2 also needs
 first; then set a cloud budget cap. An hourly rented GPU beats Colab for multi-day runs (resume works,
 but Colab sessions time out).
 
-### D5. Parked questions (no deadline)
+### D5. A hypothesis worth testing: W+Wᵀ is cheap only when capacity isn't the bottleneck
+Untested; raised 2026-09-27 from numbers already in the repo. Our ViT study kept our LM recipe on
+purpose, so it never reproduced HaLViT's setup. It showed the domain doesn't explain HaLViT's gain,
+not what does. Our own results line up by how many times a model sees its data:
+
+| setup | passes over the data | W+Wᵀ vs the same model unshared |
+|---|---|---|
+| our LMs (WikiText-103) | ~5 | +14% perplexity (clearly worse) |
+| our ViTs, ImageNet-1k | ~10 | −9.2 points (40.50 → 31.33) |
+| our ViTs, ImageNet-100 (the failed first pass) | ~101 | **no loss**: 47.32 vs 46.96 |
+| HaLViT paper (ImageNet-1k, DeiT-style recipe, heavy augmentation) | ~300 epochs (DeiT's default; not checked in the paper) | HaLViT-T 77.3% vs DeiT-Small 79.9% (−2.6), −1.1 at 600 epochs |
+
+**Hypothesis:** halving the weights costs little when the unshared model can't use its extra capacity
+(many passes over limited data, where it overfits or saturates), and costs a lot when capacity is the
+bottleneck (our LMs, ~5 passes, still underfit). That would reconcile HaLViT's success with our
+failure without either being wrong, and it's a W+Wᵀ-specific finding, which the thesis needs
+(PROJECT.md §5).
+**Caveats:** the first-pass row is from a run whose depth gate failed (all 8-layer arms sat within
+0.4 points), so "no loss" there may just mean nothing could separate. The rows also differ in more
+than passes: domain, augmentation, resolution, scale.
+**Cheap test:** one ViT pair (`V8-A0`, `V8-A2`) on ImageNet-1k at several step counts (e.g. ~5, 10,
+30 passes), same everything else. If the gap closes as passes rise, the hypothesis holds. That also
+covers D3's pass-matched point at ~5 passes. The LM analogue: the same pair at 2× and 4× tokens
+(spec §9 lists "2× tokens" as an if-time item).
+
+### D6. Parked questions (no deadline)
 - FineWeb-Edu's val/test gap is 8.8%, against 0.5–2.4% (mean 1.2%) on WikiText. Unexplained. Check before the 124M
   rung reports test PPL on FineWeb-Edu.
 - The transposed-loop rows in the reports read "pending (1/3 seeds)", although by the seed rule they
@@ -122,6 +147,7 @@ but Colab sessions time out).
    - the negatives: the transposed loop, and W+Wᵀ in vision
    - **the retraction**: the 2026-09-17 symmetry claim is withdrawn, and the ViT re-run is ~2× the LMs'
      reuse, not matched. Tell him before anything cites either.
+   - the data-reuse hypothesis (D5) as a possible W+Wᵀ-specific contribution
    - the 124M W+Wᵀ variant (D2) and the compute ask: UHEM/SP4CING access, or approval for cloud spend (D4)
    - the timeline (PROJECT.md §6) and the Design II deliverables once Ninova lists them
 3. **Merge PR #13 (T-006)** after a read-through, then run the Track 2 p-hop grid at p=4 (the W+Wᵀ
