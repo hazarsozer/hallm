@@ -173,6 +173,108 @@ called supported on the three-seed mean (+1.66 pp), but a fourth L8 seed would t
 - **Unshared P4 frontier (T-004).** A0@L8's storage re-spent on width: d720/L4 26.246, d360/L16
   26.991; d512/L8 (26.06) stays best. Table with total inference memory: `results/reports/probes.md`.
 
+## Experiment 6 — Fixed-storage pilot (2026-09-14 → 09-15)
+
+Spec: `docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md` §4. Generated table
+with every pair and total inference memory: `results/reports/iso-storage.md`. Rules (pre-registered):
+**H-C** (a shared arm beats the unshared model at the same storage) needs a lower mean *and* the sign
+in every paired seed; **H-L** (which kind spends compute better at matched storage and compute) needs
+all 3 seeds to agree and |mean| > 2 SE.
+
+| a | b | kind | Δ% per seed | mean | verdict |
+|---|---|---|---|---|---|
+| `L8-A1u4` (looped) | `L4-A0` | iso-storage | −3.37, −2.85, −3.40 | −3.21 | **SUPPORTED** |
+| `L16-A1u8` (looped) | `L8-A0` | iso-storage | −2.44, −2.32, −2.65 | −2.47 | **SUPPORTED** |
+| `L8-A2` (W+Wᵀ) | `L4-A0` | iso-storage | +1.83, +2.60, +2.06 | +2.16 | not supported |
+| `L16-A2` (W+Wᵀ) | `L8-A0` | iso-storage | +3.64, +4.73, +3.23 | +3.87 | not supported |
+| `L9-A2attn` | `L8-A0` | iso-storage | +1.81 | +1.81 | not supported (1 seed) |
+| `L10-A2attn` | `L8-A0` | iso-storage | +0.05, +0.71, −0.29 | +0.16 | not supported |
+| `L8-A1u4` | `L8-A2` | matched | −5.11, −5.31, −5.35 | −5.25 (SE 0.07) | **looping better** |
+| `L16-A1u8` | `L16-A2` | matched | −5.87, −6.73, −5.70 | −6.10 (SE 0.32) | **looping better** |
+
+- **At fixed storage, looping pays and W+Wᵀ does not**, at both sizes. Looping gains roughly 30% of
+  what doubling the stored weights gains.
+- **The cost is memory.** Looping and W+Wᵀ both add depth, so the KV cache grows: at ctx2048×8 the
+  looped L8 needs 345.6 MB against `L4-A0`'s 211.4 MB (~1.6×). The claim is about stored weights.
+- `L10-A2attn` stores 4% *more* than `L8-A0` and still does not beat it in every seed.
+
+**Track 1 probes** (`results/reports/capability.md`, 21 checkpoints): LAMBADA, BLiMP, per-position
+and per-frequency loss, copy gain. W+Wᵀ shows no reasoning (H-R) signal on any probe. Looping beats
+W+Wᵀ at L16 on LAMBADA, BLiMP, late-position and rare-token loss. LAMBADA sits near the floor (6–9%),
+so the reasoning half of the question rests on Track 2. Its harness and p-hop validity check are done
+(PR #13: looped 85.0% vs unshared deep 87.7% at p=4, reproducing Saunshi et al.'s qualitative
+result); the comparison grid has not run.
+
+## Experiment 7 — Transposed loop (2026-09-15 → 09-16)
+
+Spec: `docs/superpowers/specs/2026-09-15-transposed-loop-design.md`. Outcome:
+`docs/analysis/2026-09-16-transposed-loop-outcome.md`. A looped L8 whose second pass reuses each block
+with Wᵀ: `t` (W + Wᵀ), `n` (W − Wᵀ), `a` (learned α per sublayer). Seed 1337 only. None came within
+the pre-registered +1% of the plain loop, so none earned more seeds, and one seed is final for this arm.
+
+| variant | vs plain loop `L8-A1u4` (matched) | vs `L8-A2` (matched) | vs `L4-A0` (iso-storage) |
+|---|---|---|---|
+| `L8-A1u4t` | +3.39% | −1.89% | −0.09% |
+| `L8-A1u4n` | +4.50% | −0.84% | +0.98% |
+| `L8-A1u4a` | +3.22% | −2.05% | −0.25% |
+
+- **All three lose to the plain loop; all three beat plain W+Wᵀ.** (The "SUPPORTED" and "pending"
+  labels on these rows in `iso-storage.md` are generated from one seed. Read them as descriptive.)
+- Predictions 2 and 3 failed (`n` is the worst variant; the learned FFN α grow with depth instead of
+  falling below 1), so the symmetric/antisymmetric argument does not explain the ordering.
+
+**FFN rotation share** (`results/reports/ffn-symmetry.md`): the share of an FFN Jacobian that is
+antisymmetric. W+Wᵀ FFNs are exactly 0 by construction. Unshared LMs sit at 0.45–0.48 (random
+matrices 0.50), and sharing does not move it. Measured here as a description only (see Experiment 9).
+
+## Experiment 8 — FineWeb-Edu bridge pair (2026-09-16)
+
+`L8-A0-s1337-fw` and `L16-A2-s1337-fw`, the Experiment 2 iso-storage pair, trained on FineWeb-Edu at
+the WikiText budget (614M tokens). One seed.
+
+| run | val PPL | test PPL |
+|---|---|---|
+| `L8-A0-s1337-fw` | 45.56 | 49.55 |
+| `L16-A2-s1337-fw` | 46.45 | 50.56 |
+
+The W+Wᵀ penalty is **about half** its WikiText size (+1.94% val vs +3.64% at the same seed). The sign
+holds and the magnitude depends on the corpus, so pilot margins must not be carried to the 124M
+FineWeb-Edu rung as they are. Open: the val/test gap is 8.8% here against ~2% on WikiText.
+
+## Experiment 9 — Controlled ViT study (2026-09-16 → 09-18)
+
+Does W+Wᵀ fail in language because of the domain? The same arms and sharing code, trained as ViTs
+under our recipe with minimal augmentation (random crop + flip + label smoothing). Specs
+`2026-09-16-controlled-vit-design.md` and `2026-09-18-vit-pass-matched-design.md`; outcomes in
+`docs/analysis/2026-09-17-*` and `2026-09-18-*`; table in `results/reports/vision.md`.
+
+**First pass (ImageNet-100, 101 passes): depth gate failed** (`V8-A0` 46.96% < `V4-A0` 48.14%), so no
+sharing claim. The cause was data reuse: every arm peaked at 37–40k steps and decayed.
+
+**Second pass (ImageNet-1k @128px, 9.99 passes, 1 seed): depth gate passes (+1.23 points).**
+
+| arm | stored non-emb | top-1 (1000-way) |
+|---|---|---|
+| `V4-A0-in1k` | 12.59M | 39.27% |
+| `V8-A0-in1k` | 25.17M | 40.50% |
+| `V8-A2-in1k` (W+Wᵀ) | 12.59M | **31.33%** |
+| `V8-A1u4-in1k` (looped) | 12.59M | **41.38%** |
+| `V8-A1u4t-in1k` (transposed loop) | 12.59M | 37.87% |
+
+- **Vision orders the schemes exactly as language does**: looping > shallow unshared > transposed
+  loop > W+Wᵀ. W+Wᵀ loses 7.94 points at iso-storage. By the spec's rule, the LM negatives generalize,
+  and HaLViT's reported gain is attributable to its recipe, scale or augmentation rather than to the
+  domain. (This is not a claim that HaLViT is wrong under its own recipe.)
+- **The one difference:** looping beats the unshared *ceiling* at half the storage (+0.87 points),
+  which language never does (`L8-A1u4` is 8.06% worse than `L8-A0`). One seed; a candidate, not a finding.
+- **Withdrawn:** the first pass's "vision FFNs are more symmetric than language FFNs". Re-measured,
+  our ViTs sit at 0.4437–0.4516 against our LMs' 0.4476–0.4774.
+- **Caveat (corrected 2026-09-27):** the re-run was designed as pass-matched to the LM ladder, but the
+  LMs see 5.15 passes, not 10.31, so the ViTs see their data ~1.94× as often. Close, not matched. See
+  docs/DECISIONS.md.
+- The follow-up-seed trigger fired (`V8-A2` vs `V4-A0` ≥ 1 point) and its six runs were not launched
+  (HANDOVER.md, D3).
+
 ## Memory accounting
 
 Sharing compresses weights only — the KV cache is `2·d·L` per token regardless.
@@ -208,10 +310,15 @@ context — not serving memory in general.
    mechanism are incompatible at these scales.
 5. **It remains graceful degradation, not a superior parameter allocation.** At iso-storage the
    unshared model still wins on perplexity, and once the KV cache is counted it wins on memory too.
-6. The cross-layer (ALBERT) comparison is **open**: the earlier per-%-saved ranking was unfair (see
-   Corrections); the matched test is in the fixed-storage pilot.
-7. The program now asks whether extra compute bought with shared weights pays at fixed storage, on
-   perplexity and on reasoning: docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
+6. **At fixed storage, looping pays and W+Wᵀ does not** (Experiment 6, 3 seeds at two sizes). At
+   matched storage and compute, looping beats W+Wᵀ by 5–6%. This settles the cross-layer comparison
+   the earlier per-%-saved ranking got wrong, in the opposite direction.
+7. **W/Wᵀ reuse across depth (the transposed loop) does not rescue it** (Experiment 7), and the
+   symmetry argument does not explain why.
+8. **The domain does not explain it either** (Experiment 9): under our recipe, ViTs order the
+   sharing schemes exactly as LMs do. One seed, and ~2× the LMs' data reuse.
+9. Still open: the reasoning half of the question (the Track 2 grid; its harness is validated) and the 124M rung. The program:
+   docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
 
 ## Caveats & follow-ups
 
