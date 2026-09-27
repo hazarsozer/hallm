@@ -171,6 +171,7 @@ covers D3's pass-matched point at ~5 passes. The LM analogue: the same pair at 2
 | FineWeb-Edu token bins (2.6B train tokens) | HF, same repo, `data/fineweb/` | provenance and hashes: `data/fineweb/SOURCE.json`; regenerable with `scripts/prepare_fineweb.py` |
 | ImageNet-1k / -100 memmaps (65 GB / 6.5 GB) | not uploaded (licence) | regenerate with `scripts/prepare_imagenet1k.py` / `prepare_imagenet100.py`; provenance in `data/in1k/SOURCE.json` |
 | ViT checkpoints | HF, same repo, `checkpoints/V*` | first pass, probes and ImageNet-1k runs |
+| training curves (`metrics.jsonl`: loss / val every 1000 steps) | HF, `checkpoints/<run-id>/metrics.jsonl` | 28 runs; older runs predate per-run curves |
 | research wiki (literature, roadmap, analyses) | `wiki/` in this repo (Obsidian) | the roadmap predates the 2026-09-14 reframe; PROJECT.md is current |
 | independent implementation | GitHub `alpericon/wplusw-lm` | cross-validation is still a planned item |
 | course rules | ITU senior design principles doc (R1, 2023-10-01) | advisor approval before the final exam; faculty templates mandatory |
