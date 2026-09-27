@@ -1,6 +1,10 @@
 # Controlled ViT Study — Is the Sharing Result Domain-Specific?
 
-> **Status: approved in design 2026-09-16 (Hazar + Claude brainstorm); spec awaiting Hazar's review.**
+> **Status: executed 2026-09-16/17; recipe superseded by `2026-09-18-vit-pass-matched-design.md`.**
+> The first pass failed its depth gate because of data reuse, not the augmentation floor, and its
+> symmetry result was withdrawn. Outcome: `docs/analysis/2026-09-17-controlled-vit-outcome.md`.
+>
+> **Originally: approved in design 2026-09-16 (Hazar + Claude brainstorm).**
 > Follows `2026-09-15-transposed-loop-design.md` §5 and `docs/analysis/2026-09-16-transposed-loop-outcome.md`,
 > which closed the LM side: W+Wᵀ and all three transposed variants lose to plain looping, and the
 > LM-vs-DeiT symmetry gap is real but **uncontrolled** (different recipe, scale, data and task), so it

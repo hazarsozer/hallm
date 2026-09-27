@@ -1,5 +1,13 @@
 # Pass-matched ViT re-run — outcome
 
+> **CORRECTION 2026-09-27 — this run is ~2× the LMs' data reuse, not matched.** The LM figure used
+> throughout (24,576 tokens/step, 10.31 passes) took the context as 1024; the ladder runs at 512, so
+> the LMs see **5.15 passes**. Read "matched data reuse" below as "~1.94× the LMs' reuse", the first
+> pass as ~19.6× (not 10×), and the §2 probe (10.1 passes) as ~2× as well. The direction of the finding
+> survives: the depth effect flips sign between 101 and ~10 passes, and no arm overfits at ~10. Every
+> claim that rests on the reuse being *equal* is weakened to "close, within 2×". Whether to re-run at
+> ~25,800 steps is open. See `docs/DECISIONS.md` (2026-09-27).
+
 Spec: `docs/superpowers/specs/2026-09-18-vit-pass-matched-design.md` (predictions 1–6 recorded before
 any run of this pass, including the §3 probe). Plan:
 `docs/superpowers/plans/2026-09-18-vit-pass-matched.md`. Runs: probe 2026-09-17 late, arms

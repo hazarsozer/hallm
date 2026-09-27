@@ -69,7 +69,8 @@ def _result_row(model: ViT, model_cfg, train_cfg, name: str, top1: float, val_lo
         "top1_best": None if top1_best is None else round(top1_best, 6),
         "best_step": best_step,
         # passes = how many times the run sweeps its corpus; the axis spec 2026-09-18 §1 found
-        # unmatched between the ladder (10.31) and the first vision pass (101.03).
+        # unmatched between the ladder (5.15; the spec said 10.31, corrected 2026-09-27) and the
+        # first vision pass (101.03).
         "passes": None if not n_train else round(train_cfg.max_steps * train_cfg.batch_size / n_train, 3),
         "val_loss": round(val_loss, 4),
         "n_layer": model_cfg.n_layer,

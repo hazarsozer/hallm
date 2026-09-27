@@ -1,5 +1,9 @@
 # ViT Pass-Matched Re-Run Implementation Plan
 
+> **CORRECTION 2026-09-27:** "The LM ladder is 10.31" (Global Constraints) is wrong. The ladder runs
+> 12,288 tokens/step at context 512, which is **5.15 passes**. This plan's runs (9.99) are ~1.94× the
+> LMs' reuse. See `docs/DECISIONS.md` (2026-09-27).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Re-run the five controlled ViT arms on ImageNet-1k at 9.99 passes instead of ImageNet-100 at 101.03, so the vision arms match the LM ladder's data reuse and the depth gate can be tested on a corpus that supports it.

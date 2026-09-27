@@ -1,5 +1,12 @@
 # Controlled ViT Study — Pass-Matched Re-Run
 
+> **CORRECTION 2026-09-27 — the LM pass count below is wrong by 2×.** §1 computes the LM ladder's
+> tokens per step as 12 × 2 × **1024**; the ladder context is **512** (`SHAPES`, the run configs and the
+> frozen manifests agree). The LM ladder sees 12,288 tokens/step, 614.4M tokens, **5.15 passes**. So the
+> first ViT pass (101.03) was ~19.6× the LMs, not 10×, and the ImageNet-1k design (9.99) is ~1.94× the
+> LMs, not matched. True matching is ~25,800 steps on ImageNet-1k. The text is left as written, as the
+> record of what was designed; see `docs/DECISIONS.md` (2026-09-27).
+
 > **Status: approved in design 2026-09-18 (Hazar + Claude brainstorm); execution handed to Claude the
 > same evening.** Supersedes the recipe of `2026-09-16-controlled-vit-design.md`; its arms, sharing
 > code, measurement and predictions carry over unchanged. Written before any run of this pass,

@@ -1,5 +1,13 @@
 # Controlled ViT study — outcome
 
+> **SUPERSEDED 2026-09-18. Two things below no longer hold.** (1) The symmetry result ("vision FFNs
+> are measurably more symmetric than language FFNs", prediction 3 "holds") is **withdrawn**: re-measured
+> on ViTs trained at ~10 passes, our ViTs sit at 0.4437–0.4516 against our LMs' 0.4476–0.4774, with no
+> gap. (2) The diagnosis (the augmentation floor caused the failed depth gate) is **wrong**: the cause
+> was data reuse (~101 passes over ImageNet-100). Read
+> `docs/analysis/2026-09-18-vit-pass-matched-outcome.md`, and its own 2026-09-27 correction on the pass
+> count. This document is kept as written, as the record.
+
 Spec: `docs/superpowers/specs/2026-09-16-controlled-vit-design.md` (predictions recorded before any
 vision run). Runs: five arms, seed 1337, ImageNet-100 @112px, drained 2026-09-16/17, 0 failed.
 Artifacts: `results/reports/vision.md`, `results/reports/ffn-symmetry.md`,
