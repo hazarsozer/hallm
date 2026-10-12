@@ -1,0 +1,23 @@
+task: p_hop
+task_kwargs:
+  vocab_size: 4
+  seq_len: 64
+  dense: true
+difficulty: 8
+arm: A2
+model:
+  n_embd: 128
+  n_head: 4
+  ffn_mult: 4
+  block_size: 65
+  n_layer: 2
+train:
+  max_steps: 20000
+  batch_size: 128
+  lr: 0.003
+  warmup_steps: 500
+  eval_interval: 2000
+  eval_problems: 500
+  log_interval: 2000
+  seed: 1337
+run_id: synth-p_hop-p8-L2-A2-s1337

@@ -167,6 +167,56 @@ Small models trained from scratch on generated tasks, following Saunshi et al.'s
 Filed as a GitHub task (T-006, via `scripts/tasks.py` conventions): build + sizing pilot by Oct 5,
 full grid in Phase 2.
 
+> **Amendment 2026-10-12 (written and pushed before any grid run).** The first sizing pilot
+> (2026-09-18, PR #13) is void: its p-hop generator had a position shortcut, so its sizing numbers
+> and its validity check establish nothing (`results/synth/calibration-notes.md`). This amendment
+> replaces it and fixes the p-hop grid and its reading rules.
+>
+> *Task.* `PHopTask`: alphabet 4, sequence length 64, chance 25%. Hop-free strategies score
+> 25–32% on it (`scripts/synth_shortcut_check.py`); treat ~32% as the floor, not 25%.
+> **Deviation from Saunshi et al.:** they use length 256 and p = 16–32, and (as far as their paper
+> says) supervise only the final answer. With final-answer supervision alone our models do not
+> learn even p=1, so training also supervises hop_p at every earlier position (`dense: true`).
+> Evaluation reads only the planted final answer.
+>
+> *Second sizing pilot — unshared arms only* (seed 0, d=128, batch 128, 10k steps; 40k where noted):
+>
+> | p | `A0@L1` | `A0@L2` | `A0@L4` |
+> |---|---|---|---|
+> | 1 | 42.6% | 100% | 100% |
+> | 2 | 35.8% | 99.5% | 100% |
+> | 3 | 31.9% | 86.4% (93.0% at 40k) | 100% |
+> | 4 | 31.2% | 51.9% (61.6% at 40k) | 100% |
+> | 6 | 32.2% | 46.5% | 100% |
+> | 8 | 30.7% | 30.6% | 99.2% |
+> | 12 / 16 / 24 | — | — | 33.8% / 32.9% / 36.5% |
+>
+> p=8 is the hardest level where `A0@4k` is ≥90% and `A0@k` is ≤50% (T-006's sizing rule, met as
+> written). **No shared arm (looped or W+Wᵀ) was run before this amendment**, so the levels below
+> were chosen without seeing any number they will be judged on.
+>
+> *Grid.* Levels p ∈ {2, 4, 8}: `A0@L2` solves the first, sits mid-range on the second and is at
+> the floor on the third. d=128, k=1, 20k steps, batch 128, seeds 1337–1339. Same storage (12d²):
+> `A0@L1`, `A2@L2`, `A1u1@L2`, `A1u1@L4`. Compute references: `A0@L2`, `A0@L4`. Configs come from
+> `scripts/gen_synth_grid.py`; the queue is seed-major.
+>
+> *Reading rules.* The number read is exact-match accuracy after the last step on 2,000 held-out
+> problems (eval seed 999, the same problems for every run at a level). Training curves are
+> recorded and not used for any verdict. The step budget is fixed, not tuned per arm: `A0@L2` was
+> still improving at 40k steps on p=3 and p=4, so a mid-range number is "at 20k steps", not a
+> ceiling.
+> 1. **Validity check** (the 5 pp tolerance is T-006's, adopted here): at p=8, mean `A1u1@L4`
+>    within 5 pp of mean `A0@L4` over the 3 seeds. If it fails, that is reported and no W+Wᵀ
+>    comparison below is interpreted.
+> 2. **H-C**, per level: a same-storage shared arm (`A2@L2`, `A1u1@L2`, `A1u1@L4`) beats `A0@L1`
+>    iff its mean accuracy is higher and the sign holds in every paired seed.
+> 3. **H-L**, per level: `A2@L2` vs `A1u1@L2` (same storage, depth and compute), paired difference
+>    in accuracy points: "X beats Y" iff the sign holds in all 3 seeds and |mean| > 2 SE; otherwise
+>    "no difference detected". Where both arms are within 5 points of the floor or of 100%, the
+>    level is reported as uninformative for H-L rather than as a tie.
+> One task: a result here is a p-hop result, not a statement about reasoning in general. Addition
+> and binding chains are built but not calibrated.
+
 ## 6. The gate (Oct 5) — pre-registered
 
 > **Amended 2026-09-15:** if a transposed-loop variant passes H-T, it takes the W+Wᵀ slot and

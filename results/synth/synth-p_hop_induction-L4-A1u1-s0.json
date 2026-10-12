@@ -1,0 +1,25 @@
+{
+  "run_id": "synth-p_hop_induction-L4-A1u1-s0",
+  "task": "p_hop_induction",
+  "difficulty": 4,
+  "arm": "A1u1",
+  "n_layer": 4,
+  "n_embd": 128,
+  "vocab_size": 256,
+  "seed": 0,
+  "max_steps": 80000,
+  "accuracy": 0.85,
+  "final_train_loss": 0.4599,
+  "config_path": "configs/synth/pilot-p4-A1u1-L4.yaml",
+  "role": "validity check: looped model (1 unique block x4), compared against synth-p_hop_induction-L4-A0-s0",
+  "validity_check": {
+    "comparator_run_id": "synth-p_hop_induction-L4-A0-s0",
+    "comparator_accuracy": 0.8773,
+    "gap_pp": 2.73,
+    "threshold_pp": 5.0,
+    "passes": true
+  },
+  "note": "Produced via a direct hallm.synth.harness.train_synth/evaluate_exact_match call with the exact parameters in config_path, before scripts/run_synth.py existed -- deterministic given the same seed, so re-running the config should reproduce this closely.",
+  "eval_problems_final": 1500,
+  "eval_seed": 999
+}

@@ -1,0 +1,67 @@
+{
+  "run_id": "synth-p_hop-p2-L2-A2-s1338",
+  "task": "p_hop",
+  "difficulty": 2,
+  "arm": "A2",
+  "n_layer": 2,
+  "n_unique_blocks": null,
+  "n_embd": 128,
+  "vocab_size": 4,
+  "non_embedding_params": 197248,
+  "seed": 1338,
+  "max_steps": 20000,
+  "accuracy": 1.0,
+  "eval_problems_final": 2000,
+  "eval_seed": 999,
+  "final_train_loss": 3.17847661790438e-05,
+  "accuracy_curve": [
+    {
+      "step": 0,
+      "accuracy": 0.35
+    },
+    {
+      "step": 2000,
+      "accuracy": 0.866
+    },
+    {
+      "step": 4000,
+      "accuracy": 0.944
+    },
+    {
+      "step": 6000,
+      "accuracy": 0.964
+    },
+    {
+      "step": 8000,
+      "accuracy": 0.98
+    },
+    {
+      "step": 10000,
+      "accuracy": 0.97
+    },
+    {
+      "step": 12000,
+      "accuracy": 0.988
+    },
+    {
+      "step": 14000,
+      "accuracy": 0.998
+    },
+    {
+      "step": 16000,
+      "accuracy": 1.0
+    },
+    {
+      "step": 18000,
+      "accuracy": 1.0
+    },
+    {
+      "step": 19999,
+      "accuracy": 1.0
+    }
+  ],
+  "train_seconds": 308.3,
+  "torch": "2.13.0+cu126",
+  "device": "NVIDIA GeForce RTX 3070 Ti Laptop GPU",
+  "config_path": "configs/synth/grid-p_hop-p2-L2-A2-s1338.yaml"
+}
