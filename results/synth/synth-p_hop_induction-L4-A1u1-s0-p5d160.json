@@ -1,0 +1,30 @@
+{
+  "run_id": "synth-p_hop_induction-L4-A1u1-s0-p5d160",
+  "task": "p_hop_induction",
+  "difficulty": 5,
+  "arm": "A1u1",
+  "n_layer": 4,
+  "n_embd": 160,
+  "vocab_size": 256,
+  "seed": 0,
+  "max_steps": 80000,
+  "accuracy": 0.9273,
+  "final_train_loss": 0.499,
+  "eval_problems_final": 1500,
+  "eval_seed": 999,
+  "train_seconds": 1818.2,
+  "recipe": {
+    "task_kwargs": {
+      "vocab_size": 256,
+      "seq_len_margin": 4
+    },
+    "n_head": 4,
+    "ffn_mult": 4,
+    "block_size": 28,
+    "batch_size": 64,
+    "lr": 0.003,
+    "warmup_steps": 500
+  },
+  "role": "sizing-pilot calibration point at p=5, d=160 (looped, validity-check arm); not the locked config",
+  "note": "Produced by a direct hallm.synth.harness call during calibration (2026-09-18), before scripts/run_synth.py existed; no config file. Reported so the locked p=4 can be read next to the levels it was chosen over."
+}
