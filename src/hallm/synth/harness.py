@@ -66,6 +66,10 @@ def train_synth(
 
         problems = make_problems(task, difficulty, cfg.batch_size, train_rng)
         x, y = make_batch(problems, device)
+        if getattr(task, "dense", False):
+            # Dense supervision: hop_p at every position, not only the planted final one. The
+            # final column is kept from make_batch (the planted answer); tests check they agree.
+            y = torch.cat([task.dense_targets(x, difficulty)[:, :-1], y[:, -1:]], dim=1)
         opt.zero_grad(set_to_none=True)
         _, loss = model(x, y)
         loss.backward()

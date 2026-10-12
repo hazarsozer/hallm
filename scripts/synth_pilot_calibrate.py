@@ -34,15 +34,16 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--evals", type=int, default=10, help="accuracy checks during training")
+    ap.add_argument("--dense", action="store_true", help="train with hop_p targets at every position")
     ap.add_argument("--log", default="runs/synth_pilot/sweep.jsonl")
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    task = PHopTask(vocab_size=args.vocab, seq_len=args.seq_len)
+    task = PHopTask(vocab_size=args.vocab, seq_len=args.seq_len, dense=args.dense)
     log = Path(args.log)
     log.parent.mkdir(parents=True, exist_ok=True)
     print(f"p_hop vocab={args.vocab} seq_len={args.seq_len} d={args.d} steps={args.steps} "
-          f"batch={args.batch} lr={args.lr} seed={args.seed}", flush=True)
+          f"batch={args.batch} lr={args.lr} seed={args.seed} dense={args.dense}", flush=True)
 
     for p in args.p_values:
         for spec in args.arms:
@@ -62,7 +63,7 @@ def main() -> None:
             curve = [round(r["accuracy"], 3) for r in history if "accuracy" in r]
             rec = {"p": p, "arm": arm, "layers": int(layers), "accuracy": acc, "curve": curve,
                    "seconds": round(seconds), **{k: getattr(args, k) for k in
-                                                 ("d", "heads", "vocab", "seq_len", "steps", "batch", "lr", "seed")}}
+                                                 ("d", "heads", "vocab", "seq_len", "steps", "batch", "lr", "seed", "dense")}}
             with log.open("a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             print(f"p={p:2d} {arm:>5s}@L{layers}  acc {acc:.3f}  ({seconds:4.0f}s)  curve {curve}", flush=True)

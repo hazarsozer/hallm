@@ -283,3 +283,41 @@ def test_superseded_p_hop_generator_fails_the_same_shortcut_check():
     """Documents the flaw that retired PHopInductionTask (and proves the check can catch it)."""
     b = shortcut_baselines(PHopInductionTask(vocab_size=256, seq_len_margin=4), 4, n=4000, seed=7)
     assert b["copy_best_fixed_position"] > 0.5 and b["chance"] < 0.01
+
+
+def _naive_hop(tokens: list[int], i: int, p: int) -> int:
+    """hop_p from position i by Definition A.1, one step at a time; -1 if undefined."""
+    pos = i
+    for _ in range(p):
+        prev = next((j for j in range(pos - 1, -1, -1) if tokens[j] == tokens[pos]), None)
+        if prev is None:
+            return -1
+        pos = prev + 1          # prev == pos - 1 gives pos again: a stall, still defined
+    return tokens[pos]
+
+
+@pytest.mark.parametrize("vocab,seq_len,p", [(4, 32, 1), (4, 48, 3), (4, 64, 8), (5, 40, 4)])
+def test_p_hop_v2_dense_targets_match_the_definition_at_every_position(vocab, seq_len, p):
+    import torch
+
+    task = PHopTask(vocab_size=vocab, seq_len=seq_len, dense=True)
+    rng = random.Random(11)
+    problems = [task.generate(rng, p) for _ in range(40)]
+    x = torch.tensor([pr.tokens[:seq_len] for pr in problems])
+    dense = task.dense_targets(x, p).tolist()
+    for pr, row in zip(problems, dense):
+        tokens = pr.tokens[:seq_len]
+        assert row == [_naive_hop(tokens, i, p) for i in range(seq_len)]
+        assert row[-1] == pr.answer[0]          # the planted answer is the dense target at the end
+
+
+def test_p_hop_v2_dense_training_keeps_the_planted_answer_and_adds_targets():
+    from hallm.synth.data import make_batch
+
+    task = PHopTask(vocab_size=4, seq_len=48, dense=True)
+    problems = [task.generate(random.Random(s), 4) for s in range(8)]
+    x, y = make_batch(problems)
+    assert (y[:, :-1] == -1).all()              # make_batch alone stays sparse
+    dense = task.dense_targets(x, 4)
+    assert (dense[:, -1] == y[:, -1]).all()
+    assert (dense[:, :-1] >= 0).float().mean() > 0.5

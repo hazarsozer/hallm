@@ -20,7 +20,10 @@ from __future__ import annotations
 
 import random
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    import torch
 
 
 @dataclass(frozen=True)
@@ -200,11 +203,42 @@ def solve_p_hop(tokens: list[int], p: int, start_pos: int) -> int:
 class PHopTask:
     name = "p_hop"
 
-    def __init__(self, vocab_size: int = 4, seq_len: int = 256) -> None:
+    def __init__(self, vocab_size: int = 4, seq_len: int = 256, dense: bool = False) -> None:
         if vocab_size < 3:
             raise ValueError("p-hop needs an alphabet of at least 3 (chain + filler constraints)")
         self.vocab_size = vocab_size
         self._seq_len = seq_len
+        # dense=True: TRAINING also supervises hop_p at every earlier position (see
+        # `dense_targets`). Evaluation is unaffected -- it always reads the planted final answer.
+        self.dense = dense
+
+    def dense_targets(self, x: "torch.Tensor", difficulty: int) -> "torch.Tensor":
+        """hop_p at EVERY position of each sequence in `x` (B, n), -1 where it is undefined.
+
+        Same function as the planted answer (Definition A.1: find_1(v, i) is the largest j <= i
+        with v[j-1] == v[i]; hop_p applies it p times), evaluated on each prefix. Two things differ
+        from the planted final position, which is why evaluation never uses these:
+          - a hop can stall (v[i-1] == v[i] gives j == i), so many of these targets need fewer
+            than p real hops;
+          - near the start a hop has no previous occurrence: undefined, marked -1 (ignored).
+        The planted chain never stalls and is always defined, so column n-1 equals the answer."""
+        import torch
+
+        n = x.shape[1]
+        idx = torch.arange(n, device=x.device).expand_as(x)
+        nxt = torch.full_like(x, -1)                       # nxt[b, i] = find_1(v, i), or -1
+        for s in range(self.vocab_size):
+            is_s = x == s
+            last = torch.where(is_s, idx, torch.full_like(idx, -1)).cummax(dim=1).values
+            prev = torch.cat([torch.full_like(last[:, :1], -1), last[:, :-1]], dim=1)   # strictly before i
+            nxt = torch.where(is_s & (prev >= 0), prev + 1, nxt)
+        pos = idx.clone()
+        alive = torch.ones_like(x, dtype=torch.bool)
+        for _ in range(difficulty):
+            step = nxt.gather(1, pos.clamp(min=0))
+            alive &= step >= 0
+            pos = torch.where(alive, step, pos)
+        return torch.where(alive, x.gather(1, pos), torch.full_like(x, -1))
 
     def seq_len(self, difficulty: int) -> int:
         return self._seq_len
