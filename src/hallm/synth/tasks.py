@@ -62,6 +62,13 @@ class SynthTask(Protocol):
 
 
 class PHopInductionTask:
+    """SUPERSEDED by `PHopTask` — kept only so the 2026-09 pilot configs and results stay loadable.
+
+    This generator has a position shortcut (found 2026-10-12, results/synth/calibration-notes.md):
+    each landing position is drawn uniformly from the room left in a short sequence, so the chain
+    collapses toward the start and the answer is the token at position 1 in 47-73% of problems
+    (p=3..5). Accuracies measured on it do not isolate hop-following. Do not use it for new runs."""
+
     name = "p_hop_induction"
 
     def __init__(self, vocab_size: int = 64, seq_len_margin: int = 6) -> None:
@@ -163,6 +170,82 @@ def solve_p_hop(tokens: list[int], p: int, start_pos: int) -> int:
             raise ValueError(f"no previous occurrence of {v} before position {pos}")
         pos = prev + 1
     return tokens[pos]
+
+
+# --- p-hop induction, v2 ----------------------------------------------------------------------
+#
+# Same problem as above (Sanford et al. 2024; Saunshi et al. 2025, Definition A.1), generated the
+# way Saunshi et al. describe -- "picking the sequence of p-hops randomly and then shuffling them
+# around in a sequence with filler tokens" -- over a small alphabet and a fixed-length sequence
+# (their setting: alphabet 4, length 256, p = 16..32; chance is 1/alphabet).
+#
+# The chain is p disjoint adjacent pairs (q_i, pos_i = q_i + 1), ordered right to left. Hop i
+# starts at pos_{i-1} holding c_{i-1}, finds its previous occurrence at q_i, and lands on pos_i
+# holding c_i. For q_i to really be the *previous* occurrence, nothing in [pos_i, pos_{i-1} - 1]
+# may equal c_{i-1}: that fixes c_i != c_{i-1} and restricts the filler of that segment to the
+# other symbols. Pairs are disjoint (pos_i <= pos_{i-1} - 2), which rules out the value cycles the
+# first generator produced.
+#
+# What keeps hop-free strategies at chance:
+#   - the answer position pos_p is drawn FIRST, uniformly over every feasible position, and the
+#     other p-1 pairs are then spread uniformly between it and the end -- so no position is a
+#     better guess than any other (the first generator's flaw);
+#   - the sequence length does not depend on p;
+#   - chain symbols are uniform given the no-immediate-repeat constraint, and filler is uniform
+#     over what its segment allows.
+# One leak is inherent to the problem, not to the generator: c_p != c_{p-1}, so a model that
+# follows p-1 hops can rule out one symbol. tests/test_synth_tasks.py measures all of this.
+
+
+class PHopTask:
+    name = "p_hop"
+
+    def __init__(self, vocab_size: int = 4, seq_len: int = 256) -> None:
+        if vocab_size < 3:
+            raise ValueError("p-hop needs an alphabet of at least 3 (chain + filler constraints)")
+        self.vocab_size = vocab_size
+        self._seq_len = seq_len
+
+    def seq_len(self, difficulty: int) -> int:
+        return self._seq_len
+
+    def chain_positions(self, rng: random.Random, p: int) -> list[int]:
+        """Landing positions [pos_0 = n-1, pos_1, ..., pos_p], decreasing; from pos_1 on, by >= 2."""
+        n = self._seq_len
+        if p < 1:
+            raise ValueError("p-hop difficulty (hops) must be >= 1")
+        if n < 2 * p + 1:
+            raise ValueError(f"seq_len {n} too short for {p} hops (needs >= {2 * p + 1})")
+        last = rng.randint(1, n - 2 * p)              # pos_p: uniform over every feasible position
+        room = n - 2 - last                           # positions last+1 .. n-2 hold the other pairs
+        starts = sorted(rng.sample(range(room - (p - 1)), p - 1)) if p > 1 else []
+        # j-th pair (left to right) starts at last+1 + s_j + j: stars and bars, pairs never overlap
+        inner = [last + 1 + s + j + 1 for j, s in enumerate(starts)]
+        return [n - 1] + inner[::-1] + [last]
+
+    def generate(self, rng: random.Random, difficulty: int) -> SynthProblem:
+        p, n, v = difficulty, self._seq_len, self.vocab_size
+        pos = self.chain_positions(rng, p)
+
+        chain = [rng.randrange(v)]
+        for _ in range(p):
+            chain.append(rng.choice([s for s in range(v) if s != chain[-1]]))
+
+        seq = rng.choices(range(v), k=n)              # prefix before q_p stays unconstrained
+        for i in range(1, p + 1):
+            banned = chain[i - 1]
+            allowed = [s for s in range(v) if s != banned]
+            lo, hi = pos[i] + 1, pos[i - 1] - 2       # filler strictly between pos_i and q_{i-1}
+            if i == 1:
+                hi = pos[0] - 1                       # hop 1 has no pair to its right, only pos_0
+            if hi >= lo:
+                seq[lo : hi + 1] = rng.choices(allowed, k=hi - lo + 1)
+        for i in range(p + 1):
+            seq[pos[i]] = chain[i]
+            if i >= 1:
+                seq[pos[i] - 1] = chain[i - 1]        # q_i: the previous occurrence hop i finds
+
+        return SynthProblem(tokens=seq + [chain[p]], answer_start=n)
 
 
 # --- multi-digit addition ---------------------------------------------------------------------

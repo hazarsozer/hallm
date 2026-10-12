@@ -5,6 +5,7 @@ from hallm.synth.tasks import (
     AdditionTask,
     BindingChainTask,
     PHopInductionTask,
+    PHopTask,
     SynthProblem,
     SynthTask,
 )
@@ -15,6 +16,7 @@ __all__ = [
     "AdditionTask",
     "BindingChainTask",
     "PHopInductionTask",
+    "PHopTask",
     "SynthProblem",
     "SynthTask",
     "SynthTrainConfig",

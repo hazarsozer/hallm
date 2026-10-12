@@ -201,3 +201,85 @@ def test_all_three_tasks_expose_name_and_vocab_size():
     for task in (PHopInductionTask(), AdditionTask(), BindingChainTask()):
         assert isinstance(task.name, str) and task.name
         assert isinstance(task.vocab_size, int) and task.vocab_size > 0
+
+
+# --- p-hop v2 (PHopTask): correct AND free of hop-free shortcuts ---------------------------------
+#
+# The first generator passed every solver cross-check and was still unusable: its answer sat at
+# position 1 in 61% of p=4 problems. Agreement with a reference solver says the labels are right;
+# it says nothing about whether the task can be solved without doing the task. These tests pin
+# the second property.
+
+from hallm.synth.tasks import PHopTask  # noqa: E402
+from scripts.synth_shortcut_check import hop_path, shortcut_baselines  # noqa: E402
+
+
+@pytest.mark.parametrize("vocab,seq_len,p", [(4, 64, 1), (4, 64, 4), (4, 64, 8), (4, 256, 32), (8, 48, 6), (3, 40, 5)])
+@pytest.mark.parametrize("seed", [0, 1, 42])
+def test_p_hop_v2_matches_independent_solver(vocab, seq_len, p, seed):
+    task = PHopTask(vocab_size=vocab, seq_len=seq_len)
+    rng = random.Random(seed)
+    for _ in range(50):
+        problem = task.generate(rng, p)
+        prompt = problem.tokens[: problem.answer_start]
+        assert len(prompt) == seq_len and all(0 <= t < vocab for t in problem.tokens)
+        assert solve_p_hop(prompt, p, seq_len - 1) == problem.answer[0]
+
+
+def test_p_hop_v2_tightest_sequence_still_generates():
+    task = PHopTask(vocab_size=4, seq_len=2 * 6 + 1)     # exactly enough room for 6 hops
+    rng = random.Random(0)
+    for _ in range(200):
+        problem = task.generate(rng, 6)
+        prompt = problem.tokens[: problem.answer_start]
+        assert solve_p_hop(prompt, 6, len(prompt) - 1) == problem.answer[0]
+
+
+def test_p_hop_v2_chain_never_revisits_a_position_and_never_stalls():
+    task = PHopTask(vocab_size=4, seq_len=64)
+    rng = random.Random(3)
+    for _ in range(300):
+        problem = task.generate(rng, 8)
+        path = hop_path(problem.tokens[: problem.answer_start], 8)
+        assert all(a > b for a, b in zip(path, path[1:]))   # strictly leftward: no self-loop
+
+
+def test_p_hop_v2_seq_len_does_not_depend_on_difficulty():
+    task = PHopTask(vocab_size=4, seq_len=64)
+    assert {task.seq_len(p) for p in (1, 4, 16)} == {64}
+
+
+def test_p_hop_v2_rejects_bad_arguments():
+    with pytest.raises(ValueError):
+        PHopTask(vocab_size=2)
+    with pytest.raises(ValueError):
+        PHopTask(seq_len=16).generate(random.Random(0), 8)   # needs 17
+    with pytest.raises(ValueError):
+        PHopTask().generate(random.Random(0), 0)
+
+
+def test_p_hop_v2_deterministic_given_same_rng_state():
+    task = PHopTask(vocab_size=4, seq_len=64)
+    assert task.generate(random.Random(9), 8).tokens == task.generate(random.Random(9), 8).tokens
+
+
+@pytest.mark.parametrize("seq_len,p", [(64, 4), (64, 8), (128, 16)])
+def test_p_hop_v2_hop_free_strategies_stay_near_chance(seq_len, p):
+    task = PHopTask(vocab_size=4, seq_len=seq_len)
+    b = shortcut_baselines(task, p, n=6000, seed=7)
+    chance = 0.25
+    assert b["answer_share_max"] < chance + 0.03                    # labels balanced
+    assert b["max_answer_position_share"] < 3 / (seq_len - 2 * p)   # answer position ~uniform
+    assert b["copy_best_fixed_position"] < chance + 0.06            # the first generator: 0.61
+    assert b["most_frequent_token"] < chance + 0.10                 # mild, documented frequency cue
+    for k in range(p - 2):                                          # stopping early buys nothing...
+        assert abs(b[f"stop_after_{k}_hops"] - chance) < 0.05, k
+    assert b[f"stop_after_{p - 1}_hops"] == 0.0                     # ...c_p != c_{p-1} by definition,
+    if p >= 2:
+        assert b[f"stop_after_{p - 2}_hops"] < 0.37                 # so p-2 hops leave a 1-in-3 guess
+
+
+def test_superseded_p_hop_generator_fails_the_same_shortcut_check():
+    """Documents the flaw that retired PHopInductionTask (and proves the check can catch it)."""
+    b = shortcut_baselines(PHopInductionTask(vocab_size=256, seq_len_margin=4), 4, n=4000, seed=7)
+    assert b["copy_best_fixed_position"] > 0.5 and b["chance"] < 0.01

@@ -12,10 +12,18 @@ import random
 
 import torch
 
-from hallm.synth.tasks import AdditionTask, BindingChainTask, PHopInductionTask, SynthProblem, SynthTask
+from hallm.synth.tasks import (
+    AdditionTask,
+    BindingChainTask,
+    PHopInductionTask,
+    PHopTask,
+    SynthProblem,
+    SynthTask,
+)
 
 TASK_CLASSES: dict[str, type[SynthTask]] = {
-    "p_hop_induction": PHopInductionTask,
+    "p_hop": PHopTask,
+    "p_hop_induction": PHopInductionTask,  # superseded: position shortcut, see tasks.py
     "addition": AdditionTask,
     "binding_chain": BindingChainTask,
 }

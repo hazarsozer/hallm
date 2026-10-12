@@ -1,61 +1,71 @@
-"""T-006 sizing-pilot calibration (spec 2026-09-14 §5): find a (d, k, steps, p-range) where the
-unshared deep reference (A0 @ 4k layers) clears >=90% on p-hop at a difficulty where the shallow
-reference (A0 @ k layers) is <=50% -- the brief's "depth matters on this task" precondition.
+"""Track 2 sizing-pilot sweep on the p-hop task (PHopTask): accuracy by depth, arm and hop count.
 
-Not a committed experiment script -- exploratory, meant to be edited/rerun while calibrating.
-Prints a table; does not write results/ or checkpoints.
+Exploratory: it prints a table and appends one JSON line per run to --log. It writes nothing under
+results/ and is not a committed experiment — the locked recipe goes into configs/synth/.
+
+    uv run python scripts/synth_pilot_calibrate.py --p-values 2 4 8 --arms A0:1 A0:2 A0:4 --steps 20000
 """
 
 from __future__ import annotations
 
 import argparse
-import dataclasses
+import json
 import time
+from pathlib import Path
 
 import torch
 
-from hallm.model import SHAPES, arm_config
+from hallm.model import ModelConfig, arm_config
 from hallm.model.gpt import GPT
 from hallm.synth.harness import SynthTrainConfig, evaluate_exact_match, train_synth
-from hallm.synth.tasks import PHopInductionTask
-
-
-def run_one(d: int, layers: int, vocab_size: int, p: int, steps: int, seed: int) -> tuple[float, float]:
-    task = PHopInductionTask(vocab_size=vocab_size, seq_len_margin=4)
-    base = dataclasses.replace(
-        SHAPES["smoke"], vocab_size=vocab_size, block_size=task.seq_len(p) + 4,
-        n_embd=d, n_layer=layers, n_head=max(1, d // 32), ffn_mult=4,
-    )
-    model = GPT(arm_config(base, "A0"))
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    cfg = SynthTrainConfig(
-        max_steps=steps, batch_size=64, lr=3e-3, warmup_steps=max(10, steps // 20),
-        log_interval=steps, eval_interval=0, seed=seed,
-    )
-    t0 = time.time()
-    train_synth(model, cfg, task, difficulty=p, device=device)
-    elapsed = time.time() - t0
-    acc = evaluate_exact_match(model, task, difficulty=p, n_problems=500, seed=seed + 999, device=device)
-    return acc, elapsed
+from hallm.synth.tasks import PHopTask
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser()
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--p-values", type=int, nargs="+", required=True)
+    ap.add_argument("--arms", nargs="+", default=["A0:1", "A0:2", "A0:4"], help="ARM:LAYERS, e.g. A1u1:4")
     ap.add_argument("--d", type=int, default=128)
-    ap.add_argument("--k", type=int, default=2)
-    ap.add_argument("--vocab", type=int, default=32)
-    ap.add_argument("--steps", type=int, default=3000)
+    ap.add_argument("--heads", type=int, default=4)
+    ap.add_argument("--vocab", type=int, default=4)
+    ap.add_argument("--seq-len", type=int, default=64)
+    ap.add_argument("--steps", type=int, default=20000)
+    ap.add_argument("--batch", type=int, default=64)
+    ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--p-values", type=int, nargs="+", default=[2, 4, 6, 8, 10, 12, 16])
+    ap.add_argument("--evals", type=int, default=10, help="accuracy checks during training")
+    ap.add_argument("--log", default="runs/synth_pilot/sweep.jsonl")
     args = ap.parse_args()
 
-    print(f"d={args.d} k={args.k} (deep=4k={4*args.k}) vocab={args.vocab} steps={args.steps}\n")
-    print(f"{'p':>4} | {'shallow acc':>11} | {'deep acc':>9} | {'shallow s':>9} | {'deep s':>7}")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    task = PHopTask(vocab_size=args.vocab, seq_len=args.seq_len)
+    log = Path(args.log)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    print(f"p_hop vocab={args.vocab} seq_len={args.seq_len} d={args.d} steps={args.steps} "
+          f"batch={args.batch} lr={args.lr} seed={args.seed}", flush=True)
+
     for p in args.p_values:
-        acc_shallow, t_shallow = run_one(args.d, args.k, args.vocab, p, args.steps, args.seed)
-        acc_deep, t_deep = run_one(args.d, 4 * args.k, args.vocab, p, args.steps, args.seed)
-        flag = "  <-- target band" if acc_shallow <= 0.5 and acc_deep >= 0.9 else ""
-        print(f"{p:>4} | {acc_shallow:>11.3f} | {acc_deep:>9.3f} | {t_shallow:>8.1f}s | {t_deep:>6.1f}s{flag}")
+        for spec in args.arms:
+            arm, layers = spec.split(":")
+            base = ModelConfig(vocab_size=args.vocab, block_size=args.seq_len + 1, n_embd=args.d,
+                               n_layer=int(layers), n_head=args.heads, ffn_mult=4)
+            model = GPT(arm_config(base, arm))
+            cfg = SynthTrainConfig(
+                max_steps=args.steps, batch_size=args.batch, lr=args.lr, seed=args.seed,
+                warmup_steps=min(500, args.steps // 20), log_interval=args.steps // args.evals,
+                eval_interval=args.steps // args.evals, eval_problems=500,
+            )
+            t0 = time.time()
+            history = train_synth(model, cfg, task, p, device=device)
+            seconds = time.time() - t0
+            acc = evaluate_exact_match(model, task, p, 2000, 999, device=device)
+            curve = [round(r["accuracy"], 3) for r in history if "accuracy" in r]
+            rec = {"p": p, "arm": arm, "layers": int(layers), "accuracy": acc, "curve": curve,
+                   "seconds": round(seconds), **{k: getattr(args, k) for k in
+                                                 ("d", "heads", "vocab", "seq_len", "steps", "batch", "lr", "seed")}}
+            with log.open("a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+            print(f"p={p:2d} {arm:>5s}@L{layers}  acc {acc:.3f}  ({seconds:4.0f}s)  curve {curve}", flush=True)
 
 
 if __name__ == "__main__":
