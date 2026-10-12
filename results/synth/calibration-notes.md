@@ -59,7 +59,8 @@ Seed 0, d=128, 4 heads, batch 128, lr 3e-3, 10k steps (2,000 held-out problems):
 
 At 40k steps `A0@L2` reaches 93.0% on p=3 and 61.6% on p=4, still rising in both — the 2-layer
 mid-range numbers are budget-limited, not ceilings. The sweep ran twice by accident (two processes
-in parallel); the 12 duplicated runs agree to three decimals.
+in parallel): 11 of the 12 duplicated runs give the same accuracy and one does not (`A0@L1` at p=3:
+33.1% and 31.9%; the table shows the second). Runs are not bit-reproducible on this GPU.
 
 Depth sets how many hops are solvable: one layer none, two layers about 2–3, four layers 8 but not
 12. p=8 is the hardest level with deep ≥90% and shallow ≤50%, so T-006's sizing rule is met as
