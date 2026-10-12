@@ -29,8 +29,44 @@
 > - The setup is also far from theirs: they use an alphabet of 4, sequences of 256 and p = 16–32
 >   (chance 25%); the pilot used 256 symbols, 16–24 tokens and p = 3–5.
 >
-> The grid was not run. The generator needs replacing and the pilot redoing before any Track 2
-> comparison is read. The original notes are kept below as the record of what was run.
+> The grid was not run on that task. The original notes are kept at the bottom as the record of
+> what was run.
+
+## Second pilot (2026-10-12): `PHopTask`
+
+The generator was replaced (`PHopTask`: alphabet 4, length 64, answer position uniform; hop-free
+strategies at 25–32%, `scripts/synth_shortcut_check.py`) and the pilot redone with **unshared arms
+only**, so the grid's difficulty levels were fixed without seeing a looped or W+Wᵀ number.
+
+**Final-answer supervision alone does not train.** `A0@L4` at p=2 stayed at 33.4% after 20k steps
+(batch 64), and `A0@L2` at p=1 at 38.5% after 20k steps at batch 256 (5M sequences). With hop_p
+also supervised at every earlier position (`dense: true`), p=1 reaches 97% within 1k steps.
+Evaluation always reads only the planted final answer. This is a deviation from Saunshi et al.
+
+Seed 0, d=128, 4 heads, batch 128, lr 3e-3, 10k steps (2,000 held-out problems):
+
+| p | `A0@L1` | `A0@L2` | `A0@L4` |
+|---|---|---|---|
+| 1 | 42.6% | 100% | 100% |
+| 2 | 35.8% | 99.5% | 100% |
+| 3 | 31.9% | 86.4% | 100% |
+| 4 | 31.2% | 51.9% | 100% |
+| 6 | 32.2% | 46.5% | 100% |
+| 8 | 30.7% | 30.6% | 99.2% |
+| 12 | — | — | 33.8% |
+| 16 | — | — | 32.9% |
+| 24 | — | — | 36.5% |
+
+At 40k steps `A0@L2` reaches 93.0% on p=3 and 61.6% on p=4, still rising in both — the 2-layer
+mid-range numbers are budget-limited, not ceilings. The sweep ran twice by accident (two processes
+in parallel); the 12 duplicated runs agree to three decimals.
+
+Depth sets how many hops are solvable: one layer none, two layers about 2–3, four layers 8 but not
+12. p=8 is the hardest level with deep ≥90% and shallow ≤50%, so T-006's sizing rule is met as
+written. The grid (p ∈ {2, 4, 8}, 20k steps, seeds 1337–1339) and its reading rules are in the
+spec, §5, amendment 2026-10-12. Raw sweep logs: `runs/synth_pilot/*.jsonl` (not tracked).
+
+## First pilot (2026-09-18) — void, kept as the record
 
 Search over `(d, p)` for p-hop induction, looking for a difficulty level where the unshared deep
 reference (`A0 @ 4k`) reaches ≥90% accuracy at a level where the shallow reference (`A0 @ k`) is
