@@ -1,6 +1,10 @@
 # Controlled ViT Study — Is the Sharing Result Domain-Specific?
 
-> **Status: approved in design 2026-09-16 (Hazar + Claude brainstorm); spec awaiting Hazar's review.**
+> **Status: executed 2026-09-16/17; recipe superseded by `2026-09-18-vit-pass-matched-design.md`.**
+> The first pass failed its depth gate because of data reuse, not the augmentation floor, and its
+> symmetry result was withdrawn. Outcome: `docs/analysis/2026-09-17-controlled-vit-outcome.md`.
+>
+> **Originally: approved in design 2026-09-16 (Hazar + Claude brainstorm).**
 > Follows `2026-09-15-transposed-loop-design.md` §5 and `docs/analysis/2026-09-16-transposed-loop-outcome.md`,
 > which closed the LM side: W+Wᵀ and all three transposed variants lose to plain looping, and the
 > LM-vs-DeiT symmetry gap is real but **uncontrolled** (different recipe, scale, data and task), so it
@@ -113,6 +117,17 @@ the LM ladder, which is what "our recipe" means here.
 **Timing probe first.** Before the queue is written, one arm runs 200 steps to measure real
 steps/min. Sequences are 50 positions against the LM's 1024, so the runs should be much cheaper,
 but the queue is sized from the measured number, not from this estimate.
+
+**Measured 2026-09-16 (V8-A0-s1337, RTX 4070 SUPER, bf16, batch 256).** The probe was run in three
+legs so that startup could be cancelled out rather than estimated: 200 steps in 22 s including the
+one-time 6.2 GB manifest hash, then 1000 steps in 78 s, then 2000 steps in 155 s. The last two legs
+have identical startup shape (the manifest already exists), so their difference is the true marginal
+cost: **77 s per 1000 steps including the eval that falls in that window — 13.0 steps/s, 779
+steps/min.** That gives **~64 min (1.07 h) per 50,000-step V8 run**, ~32 min for the 4-block V4-A0,
+and **~4.8 h for the whole five-arm queue**. Well under the §9 R4 re-plan threshold of 8 h for a
+single run, so the queue was launched rather than re-planned. For the record, the a-priori estimate
+from parameter counts (6·N per token, the LM's 50k-vocab head being about half its FLOPs, and near
+identical tokens per step) predicted ~1.0 h per V8 run — 7% low.
 
 ## 5. Symmetry measurement (the controlled comparison)
 

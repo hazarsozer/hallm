@@ -1,0 +1,21 @@
+vshape: v8-in1k
+arm: A2
+train:
+  lr: 0.0006
+  min_lr: 6.0e-05
+  warmup_steps: 200
+  max_steps: 50000
+  weight_decay: 0.1
+  grad_clip: 1.0
+  batch_size: 256
+  grad_accum: 1
+  crop_size: 112
+  label_smoothing: 0.1
+  dtype: bfloat16
+  deterministic: true
+  eval_interval: 1000
+  checkpoint_interval: 1000
+  seed: 1337
+  out_dir: runs/vision/V8-A2-s1337-in1k
+  dataset: imagenet-1k
+  eval_subsample: 10

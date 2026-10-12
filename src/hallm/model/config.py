@@ -15,7 +15,7 @@ Mapping (ROADMAP.md §3, roadmap/03-architecture.md):
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, replace as _dc_replace
 
 
 # Transposed loop (spec 2026-09-15): how a looped arm's odd passes add their transposed update.
@@ -38,6 +38,7 @@ class ModelConfig:
     n_layer: int = 8               # number of transformer blocks L
     n_head: int = 8                # n_embd must be divisible by n_head (head_dim = n_embd // n_head)
     ffn_mult: int = 4              # FFN hidden h = ffn_mult * n_embd
+    causal: bool = True            # LM masks future positions; a ViT attends both ways
 
     # --- regularization / init ---
     dropout: float = 0.0
@@ -126,11 +127,11 @@ def arm_config(base: ModelConfig, arm: str) -> ModelConfig:
     """
     m = _LOOPED.fullmatch(arm)
     if m:
-        return replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)),
-                       loop_pass2=_PASS2_FOR_SUFFIX.get(m.group(2)))
+        return _dc_replace(base, **ARMS["A1"], n_unique_blocks=int(m.group(1)),
+                           loop_pass2=_PASS2_FOR_SUFFIX.get(m.group(2)))
     if arm not in ARMS:
         raise KeyError(f"unknown arm {arm!r}; choose from {sorted(ARMS)} or A1u<k>[t|n|a]")
-    return replace(base, **ARMS[arm], n_unique_blocks=None, loop_pass2=None)
+    return _dc_replace(base, **ARMS[arm], n_unique_blocks=None, loop_pass2=None)
 
 
 # --- candidate shapes (roadmap/03-architecture.md §1); pick the size in Term 2 after a pilot ---
@@ -162,3 +163,43 @@ SHAPES: dict[str, ModelConfig] = {
     "p4w360l16": ModelConfig(vocab_size=50257, block_size=512, n_embd=360, n_layer=16, n_head=6),
     "s124": ModelConfig(vocab_size=50257, block_size=1024, n_embd=768, n_layer=12, n_head=12),
 }
+
+
+@dataclass(frozen=True)
+class VisionConfig(ModelConfig):
+    """A ViT's shape. Inherits every sharing flag, so `arm_config` and `build_blocks` work unchanged.
+
+    `block_size` is the token count (patches + class token) and `vocab_size`/`tie_embeddings` are
+    unused by `ViT` — they stay on the base config so manifests keep one schema.
+    """
+
+    image_size: int = 112
+    patch_size: int = 16
+    n_classes: int = 100
+    causal: bool = False
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if self.image_size % self.patch_size:
+            raise ValueError(
+                f"image_size ({self.image_size}) must be divisible by patch_size ({self.patch_size})"
+            )
+        n_tokens = (self.image_size // self.patch_size) ** 2 + 1
+        if self.block_size != n_tokens:
+            raise ValueError(
+                f"block_size ({self.block_size}) must equal patches + class token ({n_tokens})"
+            )
+
+
+# Controlled ViT study (spec 2026-09-16 §2): one geometry, two depths. 49 patches + class token.
+VSHAPES: dict[str, VisionConfig] = {
+    "v4": VisionConfig(vocab_size=1, block_size=50, n_embd=512, n_layer=4, n_head=8,
+                       tie_embeddings=False),
+    "v8": VisionConfig(vocab_size=1, block_size=50, n_embd=512, n_layer=8, n_head=8,
+                       tie_embeddings=False),
+}
+
+# ImageNet-1k arms (spec 2026-09-18 §2): derived with dataclasses.replace rather than written out,
+# so the only field that can ever differ from the 100-class arms is the class count.
+VSHAPES["v4-in1k"] = _dc_replace(VSHAPES["v4"], n_classes=1000)
+VSHAPES["v8-in1k"] = _dc_replace(VSHAPES["v8"], n_classes=1000)
