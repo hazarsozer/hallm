@@ -61,3 +61,23 @@ def test_committed_grid_configs_match_the_generator(tmp_path):
     for q in generate(tmp_path):
         committed = Path("configs/synth") / Path(q).name
         assert yaml.safe_load(committed.read_text(encoding="utf-8")) == yaml.safe_load(Path(q).read_text(encoding="utf-8"))
+
+
+def test_long_runs_differ_from_their_grid_twins_only_in_steps_and_logging(tmp_path):
+    from scripts.gen_synth_grid import LONG_ARMS, LONG_QUEUE, generate_long
+
+    generate(tmp_path)
+    queue = generate_long(tmp_path)
+    assert len(queue) == len(SEEDS) * len(LONG_ARMS) == 9
+    assert (tmp_path / LONG_QUEUE).read_text(encoding="utf-8").splitlines() == queue
+    for q in queue:
+        twin = Path(q).with_name(Path(q).name.replace("-80k.yaml", ".yaml"))
+        m_long, t_long, task_long, d_long, id_long = load_synth_experiment(q)
+        m_grid, t_grid, task_grid, d_grid, id_grid = load_synth_experiment(twin)
+        assert m_long == m_grid and d_long == d_grid == 4 and id_long == id_grid + "-80k"
+        assert (task_long.vocab_size, task_long.seq_len(4), task_long.dense) == (task_grid.vocab_size, task_grid.seq_len(4), task_grid.dense)
+        assert t_long.max_steps == 4 * t_grid.max_steps
+        assert dataclasses.replace(t_long, max_steps=t_grid.max_steps, eval_interval=t_grid.eval_interval,
+                                   log_interval=t_grid.log_interval) == t_grid
+        committed = Path("configs/synth") / Path(q).name
+        assert yaml.safe_load(committed.read_text(encoding="utf-8")) == yaml.safe_load(Path(q).read_text(encoding="utf-8"))
