@@ -310,12 +310,18 @@ hop reach about 32%, so read ~32% as the floor.
 - **H-L: looping beats W+Wᵀ at p=4**, 63.2% vs 52.1% at the same storage, depth and compute. The
   pass is narrow: per-seed differences −1.2, −17.6, −14.6 points, |mean| 11.1 against 2 SE = 10.2.
   p=2 (both at the ceiling) and p=8 (both at the floor) are uninformative.
-- W+Wᵀ can only buy 2× depth at fixed storage, so it has no arm at depth 4. On this task depth is
-  what matters: the depth-2 arms sit together (52–63% at p=4) whatever they share.
+- **At 4× the steps the p=4 gap holds and tightens** (rerun pre-registered 2026-10-13, depth-2 arms
+  only, 80k steps): `A1u1@L2` 72.4%, `A0@L2` 67.7%, `A2@L2` 63.2%. Looping beats W+Wᵀ by 9.1, 9.2
+  and 9.1 points in the three seeds, so the 20k verdict was not a matter of training speed. The same
+  order holds in every seed: looping on 12d² is 4.7 points above the unshared model with 24d², and
+  W+Wᵀ on 12d² is 4.5 points below it. All three arms were still improving at 80k.
+- W+Wᵀ can only buy 2× depth at fixed storage, so it has no arm at depth 4. On this task depth
+  matters most (depth 4 solves p=4 outright), and at equal depth the sharing scheme still orders
+  the arms.
 
-**Caveats.** One task and three seeds. The step budget is fixed: in the pilot the unshared 2-layer
-model was still improving at 40k steps (61.6% at p=4), so the p=4 numbers are "at 20k steps", not
-ceilings. Two deviations from Saunshi et al.: length 64 and p ≤ 8 (theirs: 256, p = 16–32), and
+**Caveats.** One task and three seeds. Step budgets are fixed, not run to convergence: the depth-2
+arms gain about 10 points from 20k to 80k steps at p=4 and have not levelled off, so their numbers
+are "at this budget", not ceilings. Two deviations from Saunshi et al.: length 64 and p ≤ 8 (theirs: 256, p = 16–32), and
 training supervises hop_p at every position, because final-answer supervision alone did not train
 even p=1. Evaluation reads only the planted final answer. Runs are not bit-reproducible on this GPU
 (1 of 12 duplicated pilot runs differed by 1.2 points). A first pilot on an earlier task is void
