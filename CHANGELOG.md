@@ -3,6 +3,12 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-10-13 — Track 2: p=4 rerun at 80k steps (Alper)
+- The grid's one informative H-L level had passed narrowly. Depth-2 arms rerun at 4× the steps,
+  rule fixed in the spec first: looping beats W+Wᵀ by 9.1 points in every seed (72.4% vs 63.2%;
+  unshared 2-layer 67.7%). RESULTS.md Experiment 10.
+- Windows path fix for the ladder-config tests (#14); docs brought in line with Track 2 (#15).
+
 ## 2026-10-12 — Track 2: first pilot voided, task replaced, p-hop grid run (Alper, PR #13 merged)
 - **Withdrawn:** the 2026-09-18 p-hop pilot and its validity check. Its generator put the answer at
   position 1 in 61% of p=4 problems; a diagnostic `A0@L1` run just copied that token. Found before

@@ -217,6 +217,16 @@ full grid in Phase 2.
 > One task: a result here is a p-hop result, not a statement about reasoning in general. Addition
 > and binding chains are built but not calibrated.
 
+> **Amendment 2026-10-13 (written and pushed before the runs it covers).** The grid's only
+> informative H-L level, p=4, passed narrowly (looping over W+Wᵀ by 11.1 points, 2 SE = 10.2; one
+> seed at −1.2), and the pilot had shown the 2-layer arms still improving at 40k steps. So the three
+> depth-2 arms are rerun at p=4 with 4× the steps: `A2@L2`, `A1u1@L2`, `A0@L2`, 80k steps, seeds
+> 1337–1339, everything else as in the grid (`generate_long` in `scripts/gen_synth_grid.py`).
+> Reading: the grid's H-L rule, unchanged, applied to the 80k accuracies. Three outcomes are
+> possible and each is reported as such: looping still beats W+Wᵀ; no difference detected (the 20k
+> gap was a matter of training speed); or W+Wᵀ beats looping. The 20k verdict stays on record as
+> the 20k verdict whatever happens. `A0@L2` is the compute reference and enters no rule.
+
 ## 6. The gate (Oct 5) — pre-registered
 
 > **Amended 2026-09-15:** if a transposed-loop variant passes H-T, it takes the W+Wᵀ slot and

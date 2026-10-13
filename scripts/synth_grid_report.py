@@ -24,13 +24,17 @@ def name(arm: tuple[str, int]) -> str:
     return f"{arm[0]}@L{arm[1]}"
 
 
-def load(results_dir: Path) -> dict:
-    """{(p, arm, layers): {seed: accuracy in %}}"""
+def load(results_dir: Path, suffix: str = "") -> dict:
+    """{(p, arm, layers): {seed: accuracy in %}} for run IDs with exactly this suffix tag.
+
+    synth-p_hop-p8-L4-A1u1-s1337 is a grid run (suffix ""); ...-s1337-80k is the 80k rerun."""
     table: dict = {}
     for path in sorted(results_dir.glob("synth-p_hop-p*.json")):
         r = json.loads(path.read_text(encoding="utf-8"))
-        arm = r["run_id"].split("-")[4]                    # synth-p_hop-p8-L4-A1u1-s1337
-        table.setdefault((r["difficulty"], arm, r["n_layer"]), {})[r["seed"]] = 100 * r["accuracy"]
+        parts = r["run_id"].split("-")
+        if "-".join(parts[6:]) != suffix:
+            continue
+        table.setdefault((r["difficulty"], parts[4], r["n_layer"]), {})[r["seed"]] = 100 * r["accuracy"]
     return table
 
 
@@ -40,7 +44,36 @@ def paired(a: dict, b: dict) -> tuple[list[float], float, float]:
     return diffs, statistics.mean(diffs), se
 
 
-def render(table: dict) -> str:
+def hl_verdict(a: dict, b: dict) -> tuple[str, list[float], float, float, float, float]:
+    """The H-L rule for A2@L2 (a) vs A1u1@L2 (b)."""
+    diffs, mean, se = paired(a, b)
+    ma, mb = statistics.mean(a.values()), statistics.mean(b.values())
+    if all(m <= FLOOR + EDGE_PP for m in (ma, mb)) or all(m >= 100 - EDGE_PP for m in (ma, mb)):
+        verdict = "uninformative (both at the " + ("floor" if ma < 50 else "ceiling") + ")"
+    elif (all(d > 0 for d in diffs) or all(d < 0 for d in diffs)) and abs(mean) > 2 * se:
+        verdict = "**" + ("W+Wᵀ beats looping" if mean > 0 else "looping beats W+Wᵀ") + "**"
+    else:
+        verdict = "no difference detected"
+    return verdict, diffs, mean, se, ma, mb
+
+
+def render_long(grid: dict, long: dict) -> list[str]:
+    """p=4 at 80k steps (spec amendment 2026-10-13): the H-L rule, unchanged, on the 80k accuracies."""
+    seeds = sorted({s for v in long.values() for s in v})
+    out = ["", "## 4. p=4 at 80k steps (4× the grid's budget)", "",
+           "Depth-2 arms only, same recipe. Mean over seeds, per-seed values in brackets.", "",
+           "| arm | 20k steps | 80k steps |", "|---|---|---|"]
+    for arm in (("A2", 2), ("A1u1", 2), ("A0", 2)):
+        g, l = grid[(4, *arm)], long[(4, *arm)]
+        out.append(f"| `{name(arm)}` | {statistics.mean(g.values()):.1f} [{', '.join(f'{g[s]:.1f}' for s in seeds)}] | "
+                   f"{statistics.mean(l.values()):.1f} [{', '.join(f'{l[s]:.1f}' for s in seeds)}] |")
+    verdict, diffs, mean, se, _, _ = hl_verdict(long[(4, "A2", 2)], long[(4, "A1u1", 2)])
+    out += ["", f"H-L at 80k, `A2@L2` − `A1u1@L2`: mean {mean:+.1f} pp, per seed "
+                f"{', '.join(f'{d:+.1f}' for d in diffs)}, SE {se:.1f} → {verdict}."]
+    return out
+
+
+def render(table: dict, long: dict | None = None) -> str:
     levels = sorted({k[0] for k in table})
     seeds = sorted({s for v in table.values() for s in v})
     out = ["# Track 2 — p-hop grid", "",
@@ -83,17 +116,11 @@ def render(table: dict) -> str:
             f"{EDGE_PP:.0f} points of the floor ({FLOOR:.0f}%) or of 100% is uninformative.", "",
             "| level | `A2@L2` | `A1u1@L2` | mean diff A2 − A1u1 (pp) | per seed | SE | verdict |", "|---|---|---|---|---|---|---|"]
     for p in levels:
-        a, b = table[(p, "A2", 2)], table[(p, "A1u1", 2)]
-        diffs, mean, se = paired(a, b)
-        ma, mb = statistics.mean(a.values()), statistics.mean(b.values())
-        if all(m <= FLOOR + EDGE_PP for m in (ma, mb)) or all(m >= 100 - EDGE_PP for m in (ma, mb)):
-            verdict = "uninformative (both at the " + ("floor" if ma < 50 else "ceiling") + ")"
-        elif (all(d > 0 for d in diffs) or all(d < 0 for d in diffs)) and abs(mean) > 2 * se:
-            verdict = "**" + ("W+Wᵀ beats looping" if mean > 0 else "looping beats W+Wᵀ") + "**"
-        else:
-            verdict = "no difference detected"
+        verdict, diffs, mean, se, ma, mb = hl_verdict(table[(p, "A2", 2)], table[(p, "A1u1", 2)])
         out.append(f"| p={p} | {ma:.1f} | {mb:.1f} | {mean:+.1f} | {', '.join(f'{d:+.1f}' for d in diffs)} | "
                    f"{se:.1f} | {verdict} |")
+    if long:
+        out += render_long(table, long)
     return "\n".join(out) + "\n"
 
 
@@ -101,7 +128,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--results", default="results/synth")
     args = ap.parse_args()
-    text = render(load(Path(args.results)))
+    text = render(load(Path(args.results)), load(Path(args.results), suffix="80k"))
     (Path(args.results) / "grid-p_hop.md").write_text(text, encoding="utf-8")
     print(text)
 
