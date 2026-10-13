@@ -55,7 +55,7 @@ The ≤2% bar stays as a reported secondary verdict. Spec:
 | H-M1/2 | attention sharing costs more than FFN; taxes add | per-rung means, 3 seeds at L8 | H-M1 **not supported** (inverted); H-M2 supported |
 | H-C | a shared arm beats the unshared model at the same storage | lower mean **and** sign holds in every paired seed | **supported for looping** at L8 and L16; not for W+Wᵀ on perplexity |
 | H-L | which kind spends compute better (matched storage + compute) | sign in all 3 seeds and \|mean\| > 2 SE | **looping beats W+Wᵀ** at L8 and L16 |
-| H-R | the same, on reasoning metrics | H-C/H-L rules on probe or Track 2 accuracy | Track 1: looping shows signals at both sizes; the only W+Wᵀ-family signal is `L10-A2attn` on BLiMP (2 seeds). **Track 2: harness built, p=4 validity check passes at one seed (PR #13), grid not run** |
+| H-R | the same, on reasoning metrics | H-C/H-L rules on probe or Track 2 accuracy | Track 1: looping shows signals at both sizes; the only W+Wᵀ-family signal is `L10-A2attn` on BLiMP (2 seeds). **Track 2 (p-hop, 3 seeds, p ∈ {2, 4, 8}):** H-C supported for every same-storage shared arm at every level; H-L: looping beats W+Wᵀ at p=4 (narrowly), p=2 and p=8 uninformative. One task; addition and binding chains not run |
 | H-T | a transposed loop beats the plain loop | spec 2026-09-15 §3 | **failed** (all three variants lose) |
 
 Rules are fixed before the runs they judge. When a rule turned out to be badly designed, it was
@@ -90,7 +90,7 @@ and prove nothing).
 
 | when | what |
 |---|---|
-| 2026-10-05 | **Gate** (planned; see HANDOVER D1). Picks which variant of each kind runs at 124M (spec §6). T-006's build + sizing pilot is done (PR #13, awaiting merge). |
+| 2026-10-05 | **Gate** (planned; see HANDOVER D1). Picks which variant of each kind runs at 124M (spec §6). T-006's build, pilot and p-hop grid are done (PR #13, merged 2026-10-12). The gate itself has not been held. |
 | 2026-10-06 → 11-30 | Phase 2: 124M grid on FineWeb-Edu (~300 GPU-h), full Track 2 grid. 350M only if 124M shows a signal. |
 | 2026-11-30 | Experiments freeze. |
 | December | Final report in the faculty template; full draft to Töreyin by ~2026-12-20. |

@@ -36,11 +36,13 @@ Each outcome doc scores its own pre-registered predictions.
    (corrected 2026-09-27).
 5. **Withdrawn:** "W+Wᵀ beats ALBERT" (unfair ratio) and "vision FFNs are more symmetric" (did not
    reproduce). Neither may appear in the thesis except as a retraction.
-6. **Track 2 (synthetic reasoning) is built, not yet run.** Alper's PR #13 (T-006): three tasks, a
-   harness, and a p-hop sizing pilot at p=4, d=128. At p=4 the validity check passes on one seed
-   (looped 85.0% vs unshared deep 87.7%, within the PR's own 5 pp tolerance); at p=3 it fails by
-   25.6 pp. Unreviewed and unmerged since 2026-09-18.
-   **Not started:** the Track 2 grid, the 2026-10-05 gate, the 124M rung.
+6. **Track 2 (synthetic reasoning): the p-hop grid is in** (updated 2026-10-13; PR #13 merged).
+   The first pilot's numbers, quoted here until then (looped 85.0% vs deep 87.7% at p=4), are
+   **void**: its task had a position shortcut. On the replacement task (54 runs, 3 seeds, p ∈ {2, 4,
+   8}), depth decides: looping ×4 on one block's storage solves p=4 and p=8 (100%) where the
+   unshared one-block model sits at the ~31% floor; at p=4 looping ×2 beats W+Wᵀ at the same
+   storage, depth and compute (63.2% vs 52.1%, a narrow pass of the rule). RESULTS.md Experiment 10.
+   **Not started:** addition and binding chains, the gate, the 124M rung.
 
 ## 2. What changes with the handover
 
@@ -63,7 +65,7 @@ Ordered by urgency. Each has the context and the previous read, which you are fr
 ### D1. The 2026-10-05 gate — hold it, or move it
 The gate picks which W+Wᵀ variant and which looped variant run at 124M (spec §6). A variant shows
 a signal if it satisfies H-C or H-R on any Track 1 metric **or any Track 2 task**, so the gate needs
-at least the p-hop arms of the Track 2 grid (the pilot in PR #13 ran only the calibration arms). It
+at least the p-hop arms of the Track 2 grid (in since 2026-10-12, RESULTS.md Experiment 10). It
 also needs Töreyin's OK on the reframe and the 124M spend (spec §11 R11). **Previous read:** hold the
 gate until the Track 2 p-hop arms are in and the advisor has agreed, rather than decide 124M on
 Track 1 alone.
@@ -80,7 +82,12 @@ storage); if none, the lowest iso-storage PPL gap; default full A2 at 2× depth.
 - Full `A2` loses at iso-storage everywhere measured (+2.2% at L8, +3.9% at L16; −7.94 points in
   vision). The 2026-09-18 outcome (§8.3) concluded the vision result gives the slot **even less reason
   to hold plain W+Wᵀ**.
-- Track 2 can still change this: a W+Wᵀ arm with a reasoning signal there would count.
+- Track 2, as of 2026-10-12: full `A2` does satisfy H-C on p-hop (`A2@L2` beats the same-storage
+  `A0@L1` at every level and seed: +62.9, +21.2, +6.1 points at p=2, 4, 8). By the letter of the rule
+  that is a signal for plain `A2`. Read it with its context: the gain is depth 2 over depth 1, the
+  looped arm at the same storage and depth matches it at p=2 and p=8 and beats it at p=4, and the unshared 2-layer model
+  with twice the storage scores about the same. Whether that outweighs `A2attn`'s BLiMP signal is
+  the lead's call and has not been made.
 Whatever the rule picks, the choice and its evidence go to Töreyin with the compute ask. Dropping the
 slot instead would save 40% per seed (20 + 40 + 40 h → 20 + 40 h), but leaves the thesis's own mechanism
 out of its largest rung.
@@ -150,8 +157,13 @@ covers D3's pass-matched point at ~5 passes. The LM analogue: the same pair at 2
    - the data-reuse hypothesis (D5) as a possible W+Wᵀ-specific contribution
    - the 124M W+Wᵀ variant (D2) and the compute ask: UHEM/SP4CING access, or approval for cloud spend (D4)
    - the timeline (PROJECT.md §6) and the Design II deliverables once Ninova lists them
-3. **Merge PR #13 (T-006)** after a read-through, then run the Track 2 p-hop grid at p=4 (the W+Wᵀ
-   and looped arms at equal storage, 3 seeds). Two things to settle while reading it:
+3. **Done 2026-10-12, differently than written here.** While preparing the grid the pilot task
+   turned out to have a position shortcut; the task was replaced, the pilot redone with unshared
+   arms only, the rules written into the spec first, and the grid run at p ∈ {2, 4, 8}. PR #13 is
+   merged. The original step is kept below for the record; its bullets are superseded by
+   `results/synth/calibration-notes.md`.
+   ~~Merge PR #13 (T-006) after a read-through, then run the Track 2 p-hop grid at p=4 (the W+Wᵀ
+   and looped arms at equal storage, 3 seeds).~~ Two things to settle while reading it:
    - **p=3 fails the validity check badly** (looped 68.8% vs deep 94.4%) while p=4 and p=5 pass. p=4
      was chosen after seeing this. State that in the write-up, and consider reporting p=3 and p=5
      alongside p=4 rather than p=4 alone, so the choice of difficulty can't look selected.

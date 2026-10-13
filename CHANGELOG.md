@@ -3,6 +3,18 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-10-12 — Track 2: first pilot voided, task replaced, p-hop grid run (Alper, PR #13 merged)
+- **Withdrawn:** the 2026-09-18 p-hop pilot and its validity check. Its generator put the answer at
+  position 1 in 61% of p=4 problems; a diagnostic `A0@L1` run just copied that token. Found before
+  any grid run.
+- New task `PHopTask` (alphabet 4, length 64, answer position uniform), with tests that hop-free
+  strategies stay near chance. Training supervises hop_p at every position; final-answer supervision
+  alone did not train p=1.
+- Second pilot with unshared arms only; grid, levels and reading rules written into the spec and
+  pushed before the grid ran.
+- Grid: p ∈ {2, 4, 8} × 6 arms × 3 seeds. Validity check passes (at the ceiling); H-C supported for
+  every same-storage shared arm; looping beats W+Wᵀ at p=4, narrowly. RESULTS.md Experiment 10.
+
 ## 2026-09-27 — Handover to Alper; documentation pass
 - Alper takes over the project (HANDOVER.md).
 - New docs: HANDOVER.md, CHANGELOG.md, docs/PROJECT.md (the brief), docs/DECISIONS.md,
@@ -20,6 +32,7 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   FineWeb-Edu bins added to HF.
 
 ## 2026-09-18 — Track 2 built and calibrated (Alper, T-006, PR #13)
+> The pilot numbers in this entry were **withdrawn on 2026-10-12** (position shortcut in the task).
 - Three synthetic tasks (p-hop induction, addition, variable-binding chains), each checked against an
   independent reference solver (two generator bugs found and fixed), and a masked-loss harness
   separate from the LM training loop.
