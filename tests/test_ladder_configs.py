@@ -2,6 +2,8 @@
 protocol-identical configs that differ only in {shape, arm, seed, out_dir}."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from hallm.experiment import load_experiment
 from hallm.model import GPT, SHAPES, arm_config
 
@@ -52,13 +54,13 @@ def test_generate_p1_creates_four_configs_with_correct_flags(tmp_path):
     queue = generate_p1(tmp_path)
     assert len(queue) == 6
 
-    names = {p.split("/")[-1] for p in queue}
+    names = {Path(p).name for p in queue}
     assert names == {f"L8-{t}-s{s}.yaml" for t in ("A2ffn", "A2attn")
                      for s in (1337, 1338, 1339)}
 
     # seed-major ordering: both arms of seed 1337 must complete before 1338 starts, so a
     # self-contained decomposition exists as early as possible.
-    order = [p.split("/")[-1] for p in queue]
+    order = [Path(p).name for p in queue]
     assert order[:2] == ["L8-A2ffn-s1337.yaml", "L8-A2attn-s1337.yaml"]
     assert order[-2:] == ["L8-A2ffn-s1339.yaml", "L8-A2attn-s1339.yaml"]
 
@@ -116,7 +118,7 @@ def test_generate_pilot_order_and_flags(tmp_path):
     from scripts.gen_ladder_configs import generate_pilot
 
     queue = generate_pilot(tmp_path)
-    order = [p.split("/")[-1] for p in queue]
+    order = [Path(p).name for p in queue]
     assert order == [
         "L8-A1u4-s1337.yaml", "L16-A1u8-s1337.yaml", "L9-A2attn-s1337.yaml", "L10-A2attn-s1337.yaml",
         "L8-A1u4-s1338.yaml", "L16-A1u8-s1338.yaml", "L10-A2attn-s1338.yaml",
@@ -164,7 +166,7 @@ def test_generate_bridge_is_the_iso_storage_pair_on_fineweb(tmp_path):
     from scripts.gen_ladder_configs import generate_bridge
 
     queue = generate_bridge(tmp_path)
-    assert [p.split("/")[-1] for p in queue] == ["L8-A0-s1337-fw.yaml", "L16-A2-s1337-fw.yaml"]
+    assert [Path(p).name for p in queue] == ["L8-A0-s1337-fw.yaml", "L16-A2-s1337-fw.yaml"]
     _, baseline = load_experiment("configs/runs/L8-A0-s1338.yaml")
     for name, (depth, arm) in (("L8-A0-s1337-fw", (8, "A0")), ("L16-A2-s1337-fw", (16, "A2"))):
         mc, tc = load_experiment(tmp_path / f"{name}.yaml")
@@ -179,7 +181,7 @@ def test_generate_transposed_order_and_flags(tmp_path):
     from scripts.gen_ladder_configs import generate_transposed
 
     queue = generate_transposed(tmp_path)
-    assert [p.split("/")[-1] for p in queue] == [
+    assert [Path(p).name for p in queue] == [
         "L8-A1u4t-s1337.yaml", "L8-A1u4n-s1337.yaml", "L8-A1u4a-s1337.yaml"]
     assert (tmp_path / "queue-transposed.txt").read_text().splitlines() == queue
     for suffix, mode in (("t", "transpose"), ("n", "negate"), ("a", "scaled")):

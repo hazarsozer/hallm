@@ -17,8 +17,8 @@ Trained checkpoints: [hallm-thesis/hallm-wikitext103](https://huggingface.co/hal
 > compute through sharing beat the unshared model, and does W+Wᵀ or looping spend it better?
 > **So far:** looping pays at fixed storage and W+Wᵀ does not (3 seeds, two sizes); W/Wᵀ reuse
 > across depth (the transposed loop) does not rescue it; and our own ViTs go the same direction as our LMs
-> on every pre-registered pair (one seed), so the domain does not explain HaLViT's gain. Open: the reasoning-track grid (its
-> harness is validated, PR #13) and the 124M rung. Details in [RESULTS.md](RESULTS.md) Experiments 6–9. The sections below cover the
+> on every pre-registered pair (one seed), so the domain does not explain HaLViT's gain. On synthetic p-hop reasoning (Experiment 10) depth decides, looping buys it at fixed storage,
+> and W+Wᵀ can only double it. Open: the other two reasoning tasks and the 124M rung. Details in [RESULTS.md](RESULTS.md) Experiments 6–10. The sections below cover the
 > August results (the tax, its scaling, and its mechanism).
 
 All LM ladder runs share one protocol: WikiText-103, GPT-2 BPE (V=50257), d=512, ctx=512, 614M tokens
