@@ -45,3 +45,15 @@ Supported iff the mean is higher and the sign holds in every paired seed.
 | p=2 | 100.0 | 99.8 | +0.2 | +0.3, +0.2, +0.2 | 0.0 | uninformative (both at the ceiling) |
 | p=4 | 52.1 | 63.2 | -11.1 | -1.2, -17.6, -14.6 | 5.1 | **looping beats W+Wᵀ** |
 | p=8 | 36.8 | 36.1 | +0.8 | +3.0, +1.5, -2.2 | 1.5 | uninformative (both at the floor) |
+
+## 4. p=4 at 80k steps (4× the grid's budget)
+
+Depth-2 arms only, same recipe. Mean over seeds, per-seed values in brackets.
+
+| arm | 20k steps | 80k steps |
+|---|---|---|
+| `A2@L2` | 52.1 [53.4, 49.2, 53.5] | 63.2 [61.8, 64.0, 63.9] |
+| `A1u1@L2` | 63.2 [54.6, 66.8, 68.2] | 72.4 [70.9, 73.2, 73.1] |
+| `A0@L2` | 56.8 [57.0, 56.2, 57.3] | 67.7 [67.3, 67.5, 68.2] |
+
+H-L at 80k, `A2@L2` − `A1u1@L2`: mean -9.1 pp, per seed -9.1, -9.2, -9.1, SE 0.0 → **looping beats W+Wᵀ**.
