@@ -203,9 +203,9 @@ loss, copy gain. Full A2 shows no reasoning (H-R) signal on any probe. The one W
 `L10-A2attn` vs `L8-A0` on BLiMP (SUPPORTED, n=2, Δ −0.66), from an arm storing 4% more than its
 comparator. Looping shows signals at both sizes (late and rare loss; BLiMP at L16), and beats
 W+Wᵀ at L16 on LAMBADA, BLiMP, late-position and rare-token loss. LAMBADA sits near the floor (6–9%),
-so the reasoning half of the question rests on Track 2. Its harness is built (PR #13). At p=4 the
-validity check passes on one seed (looped 85.0% vs unshared deep 87.7%, within the PR's 5 pp
-tolerance), consistent with Saunshi et al.; at p=3 it fails by 25.6 pp. The comparison grid has not run.
+so the reasoning half of the question rests on Track 2 (Experiment 10). An earlier version of this
+paragraph quoted a Track 2 validity check at p=4 (looped 85.0% vs unshared deep 87.7%). **That
+number is withdrawn**: the pilot task it came from had a position shortcut (DECISIONS 2026-10-12).
 
 ## Experiment 7 — Transposed loop (2026-09-15 → 09-16)
 
@@ -281,6 +281,46 @@ steps and decayed; `V8-A1u4` peaked at 47k and `V8-A2` only at its last step.
 - The follow-up-seed trigger fired (`V8-A2` vs `V4-A0` ≥ 1 point) and its six runs were not launched
   (HANDOVER.md, D3).
 
+## Experiment 10 — Track 2: p-hop reasoning at fixed storage (2026-10-12)
+
+Small models trained from scratch on p-hop induction (Sanford et al. 2024; Saunshi et al. 2025):
+start at the last token and, p times, jump to the token after the previous occurrence of the current
+one. Spec: 2026-09-14 §5, amendment 2026-10-12, which fixed the arms, levels and reading rules
+before the grid ran. Generated table: `results/synth/grid-p_hop.md`.
+
+Setup: alphabet 4, sequence length 64, d=128, one stored block (k=1), 20k steps, batch 128, seeds
+1337–1339. Exact-match accuracy on 2,000 held-out problems. Chance is 25%; strategies that follow no
+hop reach about 32%, so read ~32% as the floor.
+
+| arm | stored | p=2 | p=4 | p=8 |
+|---|---|---|---|---|
+| `A0@L1` unshared | 12d² | 37.1 | 30.8 | 30.7 |
+| `A2@L2` W+Wᵀ | 12d² | 100.0 | 52.1 | 36.8 |
+| `A1u1@L2` looped ×2 | 12d² | 99.8 | 63.2 | 36.1 |
+| `A1u1@L4` looped ×4 | 12d² | 100.0 | 100.0 | 100.0 |
+| `A0@L2` unshared (compute ref) | 24d² | 99.8 | 56.8 | 36.9 |
+| `A0@L4` unshared (compute ref) | 48d² | 100.0 | 100.0 | 100.0 |
+
+- **Validity check: passes, at the ceiling.** At p=8 looped `A1u1@L4` and unshared `A0@L4` are both
+  at 100.0%, inside the 5 pp tolerance. Because both saturate, the check cannot show how close the
+  two really are; the pilot puts the unshared 4-layer limit between p=8 and p=12.
+- **H-C: supported for every same-storage shared arm at every level** (the sign holds in every
+  paired seed). The size of the effect is the depth it buys: looping ×4 solves p=4 and p=8 on 12d²
+  where the unshared 12d² model is at the floor.
+- **H-L: looping beats W+Wᵀ at p=4**, 63.2% vs 52.1% at the same storage, depth and compute. The
+  pass is narrow: per-seed differences −1.2, −17.6, −14.6 points, |mean| 11.1 against 2 SE = 10.2.
+  p=2 (both at the ceiling) and p=8 (both at the floor) are uninformative.
+- W+Wᵀ can only buy 2× depth at fixed storage, so it has no arm at depth 4. On this task depth is
+  what matters: the depth-2 arms sit together (52–63% at p=4) whatever they share.
+
+**Caveats.** One task and three seeds. The step budget is fixed: in the pilot the unshared 2-layer
+model was still improving at 40k steps (61.6% at p=4), so the p=4 numbers are "at 20k steps", not
+ceilings. Two deviations from Saunshi et al.: length 64 and p ≤ 8 (theirs: 256, p = 16–32), and
+training supervises hop_p at every position, because final-answer supervision alone did not train
+even p=1. Evaluation reads only the planted final answer. Runs are not bit-reproducible on this GPU
+(1 of 12 duplicated pilot runs differed by 1.2 points). A first pilot on an earlier task is void
+(`results/synth/calibration-notes.md`). Addition and binding chains are built but not calibrated.
+
 ## Memory accounting
 
 Sharing compresses weights only — the KV cache is `2·d·L` per token regardless.
@@ -323,7 +363,10 @@ context — not serving memory in general.
    symmetry argument does not explain why.
 8. **The domain does not explain it either** (Experiment 9): under our recipe, ViTs order the
    sharing schemes the way LMs do on every pre-registered pair. One seed, and ~2× the LMs' data reuse.
-9. Still open: the reasoning half of the question (the Track 2 grid; its harness is validated) and the 124M rung. The program:
+9. **On synthetic p-hop reasoning, depth decides and looping buys it** (Experiment 10): looping ×4 on one
+   block's storage solves what the unshared one-block model cannot; at matched storage, depth and compute
+   looping beats W+Wᵀ at the one informative level (narrowly). One task, three seeds.
+10. Still open: the other two reasoning tasks (addition, binding chains) and the 124M rung. The program:
    docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
 
 ## Caveats & follow-ups

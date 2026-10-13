@@ -9,6 +9,22 @@ to follow.
 
 ---
 
+### 2026-10-12 — WITHDRAWN: the first Track 2 pilot and its validity check; the task is replaced
+The 2026-09-18 p-hop pilot (shallow 54.8%, deep 87.7%, looped 85.0% at p=4; "validity check passes")
+measured a shortcut. Its generator drew each hop's landing position uniformly from the room left in a
+20-token sequence, so the chain collapsed toward the start and the answer was the token at position
+1 in 61% of problems. A diagnostic `A0@L1` run output that token 82% of the time. Anything that cited
+those numbers (HANDOVER, PROJECT, RESULTS, README, CHANGELOG) is corrected. Decided with it:
+- **New task, `PHopTask`**: alphabet 4, fixed length 64, the answer's position drawn uniformly.
+  Hop-free strategies score 25–32%; a test fails if that changes.
+- **Dense training targets.** Final-answer supervision alone did not train even p=1, so training
+  also supervises hop_p at every earlier position. Evaluation reads only the planted final answer.
+  This and the shorter sequences (64 vs 256, p ≤ 8 vs 16–32) are deviations from Saunshi et al.
+- **Levels chosen from unshared arms only.** The first pilot locked p=4 after seeing a looped arm
+  fail at p=3. The second pilot ran no shared arm; p ∈ {2, 4, 8} and the reading rules were pushed
+  (`8913462`) before the grid.
+Detail: `results/synth/calibration-notes.md`, spec 2026-09-14 §5 (amendment 2026-10-12).
+
 ### 2026-09-27 — Alper leads the project from here
 Hazar moves his focus to another project. Alper owns `main`, the run plan, the open decisions below
 and the advisor thread (CC Hazar). Compute moves off Hazar's 4070 box to Alper's laptop and rented
