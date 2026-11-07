@@ -3,6 +3,21 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-11-07 — Data-reuse test run: supported (Alper)
+- 18 runs on UHeM (jobs 556620, 556643, 556644), 0 failed, ~2,880 CPU-h. W+Wᵀ's cost at L4 falls from
+  15.44% (5 passes) to 13.39% (10) to 12.35% (20), in every seed; Δ = −3.09 ± 0.49 points. The
+  pre-registered rule reads **supported**. A0 is still improving at 20 passes. RESULTS.md Experiment 11,
+  `docs/analysis/2026-11-07-data-reuse-outcome.md`.
+- Hardware check passes (UHeM vs local 1× twins within 1%). The local seed-1339 twins ran on the 3070 Ti,
+  not the 4070 SUPER as the spec said.
+
+## 2026-11-07 — UHeM access; data-reuse test (HANDOVER D5) pre-registered (Alper)
+- Alper's own UHeM allocation (Slurm account `htdm01`) set up and benchmarked: four L4/L8 ladder
+  runs on one 4×A100 node at 14.7–15.1 (L4) and 11.3 (L8) steps/s each.
+- Pre-registered `docs/superpowers/specs/2026-11-07-data-reuse-design.md`: the L4 A0/A2 pair at
+  1×, 2× and 4× the step budget (~5, 10, 20 passes over WikiText-103), three seeds, all on UHeM.
+  18 configs from `gen_ladder_configs.py --reuse`.
+
 ## 2026-10-13 — Track 2: p=4 rerun at 80k steps (Alper)
 - The grid's one informative H-L level had passed narrowly. Depth-2 arms rerun at 4× the steps,
   rule fixed in the spec first: looping beats W+Wᵀ by 9.1 points in every seed (72.4% vs 63.2%;

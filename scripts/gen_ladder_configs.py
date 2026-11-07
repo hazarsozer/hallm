@@ -168,6 +168,39 @@ def generate_transposed(out_dir: str | Path) -> list[str]:
     return queue
 
 
+# --- Data reuse (spec 2026-11-07, HANDOVER D5) ------------------------------------------------
+# The L4 A0/A2 pair at 1x, 2x and 4x the standard step budget, so WikiText-103 is seen ~5, ~10 and
+# ~20 times. Everything else is TRAIN verbatim; the cosine schedule stretches with max_steps. All
+# runs train on UHeM, so the 1x point is re-run there under its own ID (`-uhem`) instead of pairing
+# cluster runs with the existing local ones. One a100x4q node per seed; each GPU drains one queue:
+# g0/g1 the 4x runs, g2/g3 the 1x then the 2x run, so every node finishes a complete seed.
+REUSE_RUNG, REUSE_SHAPE = "L4", "s30h"
+REUSE_BUDGETS = {"uhem": 1, "tok2x": 2, "tok4x": 4}  # run-ID segment -> step multiple
+REUSE_SLOTS = [["tok4x"], ["tok4x"], ["uhem", "tok2x"], ["uhem", "tok2x"]]  # per GPU, A0 on g0/g2
+REUSE_SLOT_ARMS = ["A0", "A2", "A0", "A2"]
+
+
+def generate_reuse(out_dir: str | Path) -> list[str]:
+    """Write the 18 data-reuse configs and one queue per (seed, GPU); return all queue paths."""
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queues: list[str] = []
+    for seed in SEEDS:
+        for gpu, (segments, arm) in enumerate(zip(REUSE_SLOTS, REUSE_SLOT_ARMS)):
+            entries = []
+            for segment in segments:
+                name = f"{REUSE_RUNG}-{arm}-s{seed}-{segment}"
+                train = {**TRAIN, "max_steps": TRAIN["max_steps"] * REUSE_BUDGETS[segment],
+                         "seed": seed, "out_dir": f"runs/ladder/{name}"}
+                spec = {"shape": REUSE_SHAPE, "arm": arm, "train": train}
+                (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+                entries.append((out / f"{name}.yaml").as_posix())  # queues are drained on Linux
+            queue = out / f"queue-reuse-s{seed}-g{gpu}.txt"
+            queue.write_text("\n".join(entries) + "\n", encoding="utf-8")
+            queues.append(str(queue))
+    return queues
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="configs/runs")
@@ -177,7 +210,13 @@ def main() -> None:
     ap.add_argument("--bridge", action="store_true", help="generate the FineWeb-Edu bridge configs + queue-bridge.txt")
     ap.add_argument("--transposed", action="store_true",
                     help="generate the transposed-loop configs + queue-transposed.txt")
+    ap.add_argument("--reuse", action="store_true",
+                    help="generate the data-reuse configs + queue-reuse-s<seed>-g<gpu>.txt")
     args = ap.parse_args()
+    if args.reuse:
+        queues = generate_reuse(args.out)
+        print(f"wrote 18 data-reuse configs to {args.out}/ and {len(queues)} per-GPU queues")
+        return
     if args.transposed:
         queue = generate_transposed(args.out)
         print(f"wrote {len(queue)} transposed-loop configs to {args.out}/, queue-transposed.txt lists them")

@@ -190,6 +190,52 @@ def test_generate_transposed_order_and_flags(tmp_path):
             (8, 4, mode, f"A1u4{suffix}", 1337)
 
 
+def test_generate_reuse_gives_every_node_one_complete_seed(tmp_path):
+    from scripts.gen_ladder_configs import generate_reuse
+
+    queues = generate_reuse(tmp_path)
+    assert [Path(q).name for q in queues] == [f"queue-reuse-s{s}-g{g}.txt"
+                                             for s in (1337, 1338, 1339) for g in range(4)]
+    for seed in (1337, 1338, 1339):
+        slots = [[Path(p).stem for p in (tmp_path / f"queue-reuse-s{seed}-g{g}.txt").read_text().splitlines()]
+                 for g in range(4)]
+        assert slots == [[f"L4-A0-s{seed}-tok4x"], [f"L4-A2-s{seed}-tok4x"],
+                         [f"L4-A0-s{seed}-uhem", f"L4-A0-s{seed}-tok2x"],
+                         [f"L4-A2-s{seed}-uhem", f"L4-A2-s{seed}-tok2x"]]
+    assert len(list(tmp_path.glob("*.yaml"))) == 18
+
+
+def test_reuse_runs_differ_from_the_ladder_pair_only_in_steps_and_out_dir(tmp_path):
+    """Same recipe as the completed L4 A0/A2 runs; max_steps is the only protocol change."""
+    import dataclasses as dc
+
+    from scripts.gen_ladder_configs import generate_reuse
+
+    generate_reuse(tmp_path)
+    for seed in (1337, 1338, 1339):
+        for arm in ("A0", "A2"):
+            base_m, base_t = load_experiment(f"configs/runs/L4-{arm}-s{seed}.yaml")
+            for segment, mult in (("uhem", 1), ("tok2x", 2), ("tok4x", 4)):
+                name = f"L4-{arm}-s{seed}-{segment}"
+                m, t = load_experiment(tmp_path / f"{name}.yaml")
+                assert m == base_m, name
+                assert t.max_steps == mult * base_t.max_steps and t.out_dir == f"runs/ladder/{name}"
+                assert dc.replace(t, max_steps=base_t.max_steps, out_dir=base_t.out_dir) == base_t, name
+
+
+def test_committed_reuse_configs_match_the_generator(tmp_path):
+    from scripts.gen_ladder_configs import generate_reuse
+
+    generate_reuse(tmp_path)
+    for generated in tmp_path.iterdir():
+        committed = Path("configs/runs") / generated.name
+        if generated.suffix == ".yaml":
+            assert committed.read_text() == generated.read_text(), generated.name
+        else:  # queue entries point into tmp_path here and into configs/runs/ in the repo
+            assert committed.read_text().splitlines() == [
+                f"configs/runs/{Path(p).name}" for p in generated.read_text().splitlines()], generated.name
+
+
 def test_transposed_recipe_matches_the_plain_loop_run(tmp_path):
     """Everything but the run directory equals the completed L8-A1u4-s1337 run's config."""
     import dataclasses as dc
