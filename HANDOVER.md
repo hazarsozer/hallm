@@ -112,6 +112,9 @@ first; then set a cloud budget cap. An hourly rented GPU beats Colab for multi-d
 but Colab sessions time out).
 
 ### D5. A hypothesis worth testing: W+Wᵀ is cheap only when capacity isn't the bottleneck
+> **Tested 2026-11-07 (LM version): supported.** At L4 the cost falls from 15.4% at 5 passes to 12.4%
+> at 20, in every seed; reuse and training length are not separated. RESULTS.md Experiment 11.
+
 Untested; raised 2026-09-27 from numbers already in the repo. Our ViT study kept our LM recipe on
 purpose, so it never reproduced HaLViT's setup. It showed the domain doesn't explain HaLViT's gain,
 not what does. Our own results line up by how many times a model sees its data:
