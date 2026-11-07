@@ -321,6 +321,30 @@ even p=1. Evaluation reads only the planted final answer. Runs are not bit-repro
 (1 of 12 duplicated pilot runs differed by 1.2 points). A first pilot on an earlier task is void
 (`results/synth/calibration-notes.md`). Addition and binding chains are built but not calibrated.
 
+## Experiment 11 — Data reuse: W+Wᵀ's cost vs passes over the data (2026-11-07)
+
+Tests HANDOVER D5: is W+Wᵀ cheap only when the unshared model sees its data many times? The L4 pair
+(`s30h`, d=512, WikiText-103) at 1×, 2× and 4× the standard step budget, three seeds, all 18 runs on
+UHeM A100s. `max_steps` is the only change to the recipe. Spec:
+`docs/superpowers/specs/2026-11-07-data-reuse-design.md`. Outcome:
+`docs/analysis/2026-11-07-data-reuse-outcome.md`.
+
+| budget | passes | A0 test_ppl | A2 test_ppl | cost of W+Wᵀ (mean ± SE) |
+|---|---|---|---|---|
+| 1× (50k steps) | 5.15 | 29.42 | 33.96 | 15.44 ± 0.22% |
+| 2× (100k) | 10.3 | 28.05 | 31.81 | 13.39 ± 0.37% |
+| 4× (200k) | 20.6 | 27.35 | 30.73 | 12.35 ± 0.29% |
+
+- **Pre-registered rule: supported.** The cost falls 1× > 2× > 4× in every seed, and Δ = g(4) − g(1)
+  = −3.09 points (per seed −2.54, −2.67, −4.06) against 2 SE = 0.97.
+- A0 is still improving at 20 passes (−1.37, then −0.70 ppl), and no run overfits. The cost shrinks
+  because A2 gains more from longer training, not because A0 runs out of data.
+- Hardware check passes: each 1× UHeM run is within 1% of its local twin (largest −0.91%).
+
+**Caveats.** On a fixed corpus more passes also means more tokens and compute; this design cannot
+separate reuse from longer training (the fresh-token FineWeb-Edu follow-up is not run). One rung, one
+corpus. It does not show that this explains HaLViT's small cost.
+
 ## Memory accounting
 
 Sharing compresses weights only — the KV cache is `2·d·L` per token regardless.
@@ -366,7 +390,9 @@ context — not serving memory in general.
 9. **On synthetic p-hop reasoning, depth decides and looping buys it** (Experiment 10): looping ×4 on one
    block's storage solves what the unshared one-block model cannot; at matched storage, depth and compute
    looping beats W+Wᵀ at the one informative level (narrowly). One task, three seeds.
-10. Still open: the other two reasoning tasks (addition, binding chains) and the 124M rung. The program:
+10. **W+Wᵀ's cost shrinks with longer training on the same data** (Experiment 11): from 15.4% at 5
+   passes to 12.4% at 20 (L4, 3 seeds). Reuse and training length are not separated.
+11. Still open: the other two reasoning tasks (addition, binding chains) and the 124M rung. The program:
    docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
 
 ## Caveats & follow-ups
