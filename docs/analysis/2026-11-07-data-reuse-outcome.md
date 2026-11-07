@@ -81,3 +81,8 @@ by −1.04. In every seed both steps are negative.
 
 Three node runs of 3 h 46 min, 3 h 46 min and 3 h 43 min on `a100x4q`: about **2,880 CPU-h** at
 256 CPU-h per node-hour, against the estimate of ~2,900.
+
+## Acknowledgement
+
+Computing resources used in this work were provided by the National Center for High Performance
+Computing of Turkey (UHeM) under grant number 4029252026.
