@@ -59,12 +59,47 @@ def generate(out_dir: str | Path) -> list[str]:
     return queue
 
 
+# --- p=4 at 4x the step budget (spec amendment 2026-10-13) -------------------------------------
+# The grid's one informative H-L level passed narrowly, and the pilot showed the 2-layer arms still
+# improving at 40k steps. Same three depth-2 arms, same recipe, 80k steps instead of 20k.
+LONG_LEVEL = 4
+LONG_STEPS = 80000
+LONG_ARMS = (("A2", 2), ("A1u1", 2), ("A0", 2))
+LONG_QUEUE = "queue-grid-p_hop-p4-80k.txt"
+
+
+def generate_long(out_dir: str | Path) -> list[str]:
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queue: list[str] = []
+    for seed in SEEDS:
+        for arm, layers in LONG_ARMS:
+            tag = f"p{LONG_LEVEL}-L{layers}-{arm}-s{seed}-80k"
+            spec = {
+                "task": TASK,
+                "task_kwargs": dict(TASK_KWARGS),
+                "difficulty": LONG_LEVEL,
+                "arm": arm,
+                "model": {**MODEL, "n_layer": layers},
+                "train": {**TRAIN, "max_steps": LONG_STEPS, "eval_interval": 8000,
+                          "log_interval": 8000, "seed": seed},
+                "run_id": f"synth-{TASK}-{tag}",
+            }
+            path = out / f"grid-{TASK}-{tag}.yaml"
+            path.write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+            queue.append(path.as_posix())
+    (out / LONG_QUEUE).write_text("\n".join(queue) + "\n", encoding="utf-8")
+    return queue
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default="configs/synth")
     args = ap.parse_args()
     queue = generate(args.out)
     print(f"wrote {len(queue)} configs to {args.out}/ and {QUEUE}")
+    queue = generate_long(args.out)
+    print(f"wrote {len(queue)} configs to {args.out}/ and {LONG_QUEUE}")
 
 
 if __name__ == "__main__":
