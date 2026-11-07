@@ -3,6 +3,13 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-11-07 — UHeM access; data-reuse test (HANDOVER D5) pre-registered (Alper)
+- Alper's own UHeM allocation (Slurm account `htdm01`) set up and benchmarked: four L4/L8 ladder
+  runs on one 4×A100 node at 14.7–15.1 (L4) and 11.3 (L8) steps/s each.
+- Pre-registered `docs/superpowers/specs/2026-11-07-data-reuse-design.md`: the L4 A0/A2 pair at
+  1×, 2× and 4× the step budget (~5, 10, 20 passes over WikiText-103), three seeds, all on UHeM.
+  18 configs from `gen_ladder_configs.py --reuse`.
+
 ## 2026-10-12 — Track 2: first pilot voided, task replaced, p-hop grid run (Alper, PR #13 merged)
 - **Withdrawn:** the 2026-09-18 p-hop pilot and its validity check. Its generator put the answer at
   position 1 in 61% of p=4 problems; a diagnostic `A0@L1` run just copied that token. Found before
