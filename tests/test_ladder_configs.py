@@ -236,6 +236,55 @@ def test_committed_reuse_configs_match_the_generator(tmp_path):
                 f"configs/runs/{Path(p).name}" for p in generated.read_text().splitlines()], generated.name
 
 
+def test_generate_l16fw_gives_every_node_one_complete_seed(tmp_path):
+    from scripts.gen_ladder_configs import generate_l16fw
+
+    queues = generate_l16fw(tmp_path)
+    assert [Path(q).name for q in queues] == [f"queue-l16fw-s{s}-g{g}.txt"
+                                             for s in (1337, 1338, 1339) for g in range(4)]
+    for seed in (1337, 1338, 1339):
+        slots = [[Path(p).stem for p in (tmp_path / f"queue-l16fw-s{seed}-g{g}.txt").read_text().splitlines()]
+                 for g in range(4)]
+        assert slots == [[f"L16-A0-s{seed}-fw4x"], [f"L16-A2-s{seed}-fw4x"],
+                         [f"L16-A0-s{seed}-fw1x", f"L16-A0-s{seed}-fw2x"],
+                         [f"L16-A2-s{seed}-fw1x", f"L16-A2-s{seed}-fw2x"]]
+    assert len(list(tmp_path.glob("*.yaml"))) == 18
+
+
+def test_l16fw_runs_differ_from_the_ladder_pair_only_in_steps_out_dir_and_dataset(tmp_path):
+    """Spec 2026-11-19 §3: the L16 ladder recipe; max_steps, out_dir and the corpus change."""
+    import dataclasses as dc
+
+    from scripts.gen_ladder_configs import generate_l16fw
+
+    generate_l16fw(tmp_path)
+    for seed in (1337, 1338, 1339):
+        for arm in ("A0", "A2"):
+            base_m, base_t = load_experiment(f"configs/runs/L16-{arm}-s{seed}.yaml")
+            for budget in (1, 2, 4):
+                name = f"L16-{arm}-s{seed}-fw{budget}x"
+                m, t = load_experiment(tmp_path / f"{name}.yaml")
+                assert m == base_m and m.arm == arm and m.n_layer == 16, name
+                assert (m.share_intra_ffn, m.share_intra_attn) == ((False, False) if arm == "A0" else (True, True))
+                assert t.max_steps == 50_000 * budget and t.out_dir == f"runs/ladder/{name}"
+                assert t.dataset == "fineweb-edu" and base_t.dataset == "wikitext-103"
+                assert dc.replace(t, max_steps=base_t.max_steps, out_dir=base_t.out_dir,
+                                  dataset=base_t.dataset) == base_t, name
+
+
+def test_committed_l16fw_configs_match_the_generator(tmp_path):
+    from scripts.gen_ladder_configs import generate_l16fw
+
+    generate_l16fw(tmp_path)
+    for generated in tmp_path.iterdir():
+        committed = Path("configs/runs") / generated.name
+        if generated.suffix == ".yaml":
+            assert committed.read_text() == generated.read_text(), generated.name
+        else:  # queue entries point into tmp_path here and into configs/runs/ in the repo
+            assert committed.read_text().splitlines() == [
+                f"configs/runs/{Path(p).name}" for p in generated.read_text().splitlines()], generated.name
+
+
 def test_transposed_recipe_matches_the_plain_loop_run(tmp_path):
     """Everything but the run directory equals the completed L8-A1u4-s1337 run's config."""
     import dataclasses as dc
