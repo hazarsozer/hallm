@@ -3,6 +3,11 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-11-19 — Töreyin meeting; L16 FineWeb-Edu budget grid pre-registered (Hazar, Alper)
+- Follow-up to the data-reuse test: does W+Wᵀ's cost still shrink with longer training when the data is
+  not repeated? The L16 A0/A2 pair on FineWeb-Edu at 1×, 2× and 4× steps (≤ 1 pass), three seeds, on
+  UHeM. Spec `docs/superpowers/specs/2026-11-19-l16-fineweb-budget-design.md`, task #20.
+
 ## 2026-11-07 — Data-reuse test run: supported (Alper)
 - 18 runs on UHeM (jobs 556620, 556643, 556644), 0 failed, ~2,880 CPU-h. W+Wᵀ's cost at L4 falls from
   15.44% (5 passes) to 13.39% (10) to 12.35% (20), in every seed; Δ = −3.09 ± 0.49 points. The
