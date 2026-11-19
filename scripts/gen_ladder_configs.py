@@ -201,6 +201,36 @@ def generate_reuse(out_dir: str | Path) -> list[str]:
     return queues
 
 
+# --- L16 FineWeb-Edu budget grid (spec 2026-11-19, issue #20) ----------------------------------
+# The L16 A0/A2 pair at 1x, 2x and 4x the step budget on FineWeb-Edu, where 4x is about one pass, so
+# training gets longer without repeating data. TRAIN verbatim plus `dataset`; same node layout as
+# the reuse grid. Drain with `--data data/fineweb`.
+L16FW_RUNG, L16FW_SHAPE = "L16", "s30x2"
+L16FW_SLOTS = [[4], [4], [1, 2], [1, 2]]  # step multiples per GPU, A0 on g0/g2
+L16FW_SLOT_ARMS = ["A0", "A2", "A0", "A2"]
+
+
+def generate_l16fw(out_dir: str | Path) -> list[str]:
+    """Write the 18 L16 FineWeb-Edu budget configs and one queue per (seed, GPU); return all queue paths."""
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    queues: list[str] = []
+    for seed in SEEDS:
+        for gpu, (budgets, arm) in enumerate(zip(L16FW_SLOTS, L16FW_SLOT_ARMS)):
+            entries = []
+            for budget in budgets:
+                name = f"{L16FW_RUNG}-{arm}-s{seed}-fw{budget}x"
+                train = {**TRAIN, "max_steps": TRAIN["max_steps"] * budget, "dataset": "fineweb-edu",
+                         "seed": seed, "out_dir": f"runs/ladder/{name}"}
+                spec = {"shape": L16FW_SHAPE, "arm": arm, "train": train}
+                (out / f"{name}.yaml").write_text(yaml.safe_dump(spec, sort_keys=False), encoding="utf-8")
+                entries.append((out / f"{name}.yaml").as_posix())  # queues are drained on Linux
+            queue = out / f"queue-l16fw-s{seed}-g{gpu}.txt"
+            queue.write_text("\n".join(entries) + "\n", encoding="utf-8")
+            queues.append(str(queue))
+    return queues
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--out", default="configs/runs")
@@ -212,7 +242,13 @@ def main() -> None:
                     help="generate the transposed-loop configs + queue-transposed.txt")
     ap.add_argument("--reuse", action="store_true",
                     help="generate the data-reuse configs + queue-reuse-s<seed>-g<gpu>.txt")
+    ap.add_argument("--l16fw", action="store_true",
+                    help="generate the L16 FineWeb-Edu budget configs + queue-l16fw-s<seed>-g<gpu>.txt")
     args = ap.parse_args()
+    if args.l16fw:
+        queues = generate_l16fw(args.out)
+        print(f"wrote 18 L16 FineWeb-Edu configs to {args.out}/ and {len(queues)} per-GPU queues")
+        return
     if args.reuse:
         queues = generate_reuse(args.out)
         print(f"wrote 18 data-reuse configs to {args.out}/ and {len(queues)} per-GPU queues")
