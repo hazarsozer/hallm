@@ -3,6 +3,14 @@
 What happened, newest first, one entry per study or milestone. Results live in RESULTS.md, reasons in
 docs/DECISIONS.md. This file is the timeline that connects them.
 
+## 2026-11-20 — L16 FineWeb-Edu budget grid run: shrinks (Alper)
+- 18 runs on UHeM (jobs 566271, 566503, 566504), 0 failed, ~5,570 CPU-h (estimate ~6,100) plus a
+  ~53 CPU-h benchmark (566232). W+Wᵀ's cost at L16 falls from 15.13% (0.24 passes) to 13.06% to 12.16%
+  (0.95 passes), in every seed; Δ = −2.97 ± 0.35 points. The pre-registered rule reads **shrinks**. Both
+  arms are still improving at 4×. RESULTS.md Experiment 12, `docs/analysis/2026-11-20-l16-fineweb-outcome.md`.
+- Hardware note within 1% (−0.14% vs the local `L16-A2-s1337-fw`). The rest of the UHeM allocation
+  (grant 4029252026) is left for Hazar's 124M run.
+
 ## 2026-11-19 — Töreyin meeting; L16 FineWeb-Edu budget grid pre-registered (Hazar, Alper)
 - Follow-up to the data-reuse test: does W+Wᵀ's cost still shrink with longer training when the data is
   not repeated? The L16 A0/A2 pair on FineWeb-Edu at 1×, 2× and 4× steps (≤ 1 pass), three seeds, on
