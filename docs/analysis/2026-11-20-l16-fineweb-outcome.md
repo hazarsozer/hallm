@@ -94,8 +94,8 @@ every seed.
 
 Three node runs of 7 h 08 min, 7 h 20 min and 7 h 16 min on `a100x4q`: 21.74 node-hours, about
 **5,570 CPU-h** at 256 CPU-h per node-hour, against the estimate of ~6,100. The 10-minute benchmark
-before the grid (job 566232) added about 53 CPU-h. The rest of the allocation is untouched and stays
-reserved for Hazar's 124M run.
+before the grid (job 566232) added about 53 CPU-h. The rest of the allocation is untouched and kept as a
+reserve, in case Hazar's 124M run (on his own allocation) needs continuing.
 
 ## Acknowledgement
 
