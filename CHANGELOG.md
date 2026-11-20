@@ -9,7 +9,7 @@ docs/DECISIONS.md. This file is the timeline that connects them.
   (0.95 passes), in every seed; Δ = −2.97 ± 0.35 points. The pre-registered rule reads **shrinks**. Both
   arms are still improving at 4×. RESULTS.md Experiment 12, `docs/analysis/2026-11-20-l16-fineweb-outcome.md`.
 - Hardware note within 1% (−0.14% vs the local `L16-A2-s1337-fw`). The rest of the UHeM allocation
-  (grant 4029252026) is left for Hazar's 124M run.
+  (grant 4029252026) is kept as a reserve, in case Hazar's 124M run (on his own allocation) needs continuing.
 
 ## 2026-11-19 — Töreyin meeting; L16 FineWeb-Edu budget grid pre-registered (Hazar, Alper)
 - Follow-up to the data-reuse test: does W+Wᵀ's cost still shrink with longer training when the data is
