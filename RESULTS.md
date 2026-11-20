@@ -351,6 +351,31 @@ UHeM A100s. `max_steps` is the only change to the recipe. Spec:
 separate reuse from longer training (the fresh-token FineWeb-Edu follow-up is not run). One rung, one
 corpus. It does not show that this explains HaLViT's small cost.
 
+## Experiment 12 — L16 FineWeb-Edu budget grid: W+Wᵀ's cost without repeated data (2026-11-20)
+
+Follow-up to Experiment 11: does the cost still shrink with longer training when no data is repeated?
+The L16 A0/A2 pair (`s30x2`, d=512, FineWeb-Edu) at 1×, 2× and 4× the step budget (0.24 to 0.95 passes),
+three seeds, all 18 runs on UHeM A100s. `max_steps` is the only change to the recipe. Spec:
+`docs/superpowers/specs/2026-11-19-l16-fineweb-budget-design.md` (task #20). Outcome:
+`docs/analysis/2026-11-20-l16-fineweb-outcome.md`.
+
+| budget | passes | A0 test_ppl | A2 test_ppl | cost of W+Wᵀ (mean ± SE) |
+|---|---|---|---|---|
+| 1× (50k steps) | 0.24 | 43.93 | 50.57 | 15.13 ± 0.22% |
+| 2× (100k) | 0.47 | 40.61 | 45.91 | 13.06 ± 0.37% |
+| 4× (200k) | 0.95 | 38.75 | 43.47 | 12.16 ± 0.24% |
+
+- **Pre-registered rule: shrinks.** The cost falls 1× > 2× > 4× in every seed, and Δ = g(4) − g(1)
+  = −2.97 points (per seed −3.34, −2.27, −3.29) against 2 SE = 0.70.
+- Both arms still improve at 4× (A0 −1.85 ppl from 2× to 4×), and the lowest validation loss is at the
+  end of every run. The cost shrinks because A2 gains more from longer training.
+- The costs are close to Experiment 11's L4 WikiText values (15.4 / 13.4 / 12.4%). Test perplexity is
+  ~8.4% above validation in every run, as in Experiment 8. Hardware note: `L16-A2-s1337-fw1x` is within
+  0.14% of the local `L16-A2-s1337-fw`.
+
+**Caveats.** One size, one seed set, ≤ 1 pass, a cosine schedule per budget. Where the cost stops
+falling is not measured. Says nothing about 124M.
+
 ## Memory accounting
 
 Sharing compresses weights only — the KV cache is `2·d·L` per token regardless.
@@ -398,7 +423,9 @@ context — not serving memory in general.
    looping beats W+Wᵀ at the one informative level (narrowly). One task, three seeds.
 10. **W+Wᵀ's cost shrinks with longer training on the same data** (Experiment 11): from 15.4% at 5
    passes to 12.4% at 20 (L4, 3 seeds). Reuse and training length are not separated.
-11. Still open: the other two reasoning tasks (addition, binding chains) and the 124M rung. The program:
+11. **It also shrinks without repeated data** (Experiment 12): at L16 on FineWeb-Edu, from 15.1% at
+   0.24 passes to 12.2% at 0.95 (3 seeds). Longer training, not reuse, is enough.
+12. Still open: the other two reasoning tasks (addition, binding chains) and the 124M rung. The program:
    docs/superpowers/specs/2026-09-14-fixed-storage-compute-program-design.md.
 
 ## Caveats & follow-ups
